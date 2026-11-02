@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Rygalik — Главное меню</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg-void:      #0a0c11;
+  --panel:        #14171f;
+  --panel-soft:   #1b1f29;
+  --panel-border: rgba(201,162,39,0.32);
+  --gold:         #c9a227;
+  --gold-bright:  #e8c96b;
+  --text:         #eae6da;
+  --text-muted:   #948f80;
+
+  --font-display: 'Cinzel', serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+*{ box-sizing: border-box; }
+
+html, body{
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: #000000;
+  color: var(--text);
+  font-family: var(--font-body);
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.screen{
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #000000;
+  backdrop-filter: none;
+  animation: fade-in 0.35s ease both;
+}
+
+.menu-card-main {
+  position: relative;
+  width: 100%;
+  max-width: 500px;
+  text-align: center;
+}
+
+.menu-title-gold {
+  font-family: var(--font-display);
+  font-size: 72px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--gold-bright);
+  text-shadow: 0 2px 18px rgba(201,162,39,0.35);
+  margin: 0 0 40px;
+  text-align: center;
+}
+
+.btn-start-game {
+  display: block;
+  margin: 0 auto;
+  padding: 16px 48px;
+  font-family: var(--font-body);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: transform 0.12s ease, filter 0.12s ease;
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  border: 1px solid rgba(0,0,0,0.2);
+  color: #201804;
+}
+.btn-start-game:hover { filter: brightness(1.1); }
+.btn-start-game:active { transform: scale(0.98); }
+
+.pre-alpha {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  font-size: 12px;
+  color: var(--gold);
+  opacity: 0.7;
+  letter-spacing: 0.1em;
+}
+
+@keyframes fade-in{
+  from{ opacity: 0; }
+  to{ opacity: 1; }
+}
+
+@media (max-width: 560px){
+  .menu-title-gold{ font-size: 48px; }
+  .menu-card-main{ max-width: 400px; }
+}
+</style>
+</head>
+<body>
+
+<div class="screen">
+  <div class="menu-card-main">
+    <h1 class="menu-title-gold">Rygalik</h1>
+    <button id="start-btn" class="btn-start-game">начать игру</button>
+    <div class="pre-alpha">Pre-Alpha</div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const startBtn = document.getElementById('start-btn');
+  
+  startBtn.addEventListener('click', function() {
+    // Отправляем сообщение родительскому окну
+    window.parent.postMessage({ type: 'START_GAME' }, '*');
+  });
+})();
+</script>
+
+</body>
+</html>
