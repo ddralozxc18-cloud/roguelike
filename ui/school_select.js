@@ -93,7 +93,13 @@
       gameState.innateSchool2 = schoolId;
       window.updateHUD?.();
       gameState.paused = false;
-      document.getElementById('game-container').requestPointerLock();
+      // Захват курсора — через общий хелпер game.js (с exitPointerLock-фолбэком),
+      // иначе после выхода из блокировки браузер может отклонить запрос
+      if (typeof window.requestGamePointerLock === 'function') {
+        window.requestGamePointerLock();
+      } else {
+        document.getElementById('game-container').requestPointerLock();
+      }
       return;
     }
     // Выбор врождённой магии на старте: применяем и запускаем игру

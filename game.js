@@ -936,8 +936,26 @@ function updateNearestPickup() {
 // Игрок: движение, физика, характеристики
 // ---------------------------------------------------------
 function isActive() {
+  // Любое модальное окно с курсором (выбор школы и т.п.) блокирует управление
+  if (typeof hasModalOverlayOpen === 'function' && hasModalOverlayOpen()) return false;
   if (typeof schoolSelectIsOpen === 'function' && schoolSelectIsOpen()) return false;
   return state.started && !state.paused && !state.inventoryOpen && !state.dead && !cheatConsoleOpen;
+}
+
+// Есть ли открытое модальное окно, требующее видимого курсора
+function hasModalOverlayOpen() {
+  const ids = [
+    'school-select-screen',
+    'inventory-screen',
+    'pause-screen',
+    'death-screen',
+    'spell-choice-screen',
+  ];
+  for (const id of ids) {
+    const el = document.getElementById(id);
+    if (el && !el.classList.contains('hidden')) return true;
+  }
+  return false;
 }
 
 // ---------------------------------------------------------
@@ -1178,8 +1196,55 @@ function beginGame() {
   window.focus();
   container.focus();
 
-  container.requestPointerLock();
+  requestGamePointerLock();
 }
+
+// Захват курсора для игры. Если указатель уже заблокирован другим элементом
+// (или завис после экрана выбора школы), сначала освобождаем его — иначе
+// requestPointerLock() молча падает с pointerlockerror и остаётся видимый
+// курсор без управления камерой.
+let pendingLockRetries = 0;
+function requestGamePointerLock() {
+  if (!isActive()) return; // открыто модальное окно (выбор школы) — не блокируем
+  const pl = document.pointerLockElement;
+  if (pl === container) return; // уже захвачено
+  if (pl) {
+    // был захват на другом элементе — дождёмся pointerlockchange и повторим
+    document.exitPointerLock();
+    setTimeout(requestGamePointerLock, 60);
+    return;
+  }
+  try {
+    const res = container.requestPointerLock();
+    if (res && typeof res.catch === 'function') {
+      res.catch(() => {});
+    }
+  } catch (err) {
+    console.warn('requestPointerLock failed', err);
+  }
+  // Страховка: если браузер отклонил запрос (например, из-за только что
+  // снятого блока или «cooling-off» периода после выхода из блокировки),
+  // повторяем несколько раз в течение секунды.
+  if (document.pointerLockElement !== container && pendingLockRetries < 5) {
+    pendingLockRetries++;
+    setTimeout(requestGamePointerLock, 120);
+  } else {
+    pendingLockRetries = 0;
+  }
+}
+
+// Доступ из ui-скриптов (school_select и др.)
+window.requestGamePointerLock = requestGamePointerLock;
+
+// Фолбэк: если по какой-то причине браузер не дал захватить указатель после
+// выбора школы (видимый курсор, камера не крутится), клик по игровому окну
+// повторно запрашивает блокировку.
+container.addEventListener('click', () => {
+  if (isActive() && document.pointerLockElement !== container) {
+    pendingLockRetries = 0;
+    requestGamePointerLock();
+  }
+});
 
 function die() {
   state.dead = true;
@@ -1200,7 +1265,7 @@ function respawn() {
   if (!handMesh) {
     initHand();
   }
-  container.requestPointerLock();
+  requestGamePointerLock();
 }
 
 function fullReset() {
@@ -1245,7 +1310,7 @@ function fullReset() {
   if (!handMesh) {
     initHand();
   }
-  container.requestPointerLock();
+  requestGamePointerLock();
 }
 
 function toggleInventory() {
@@ -1257,7 +1322,7 @@ function toggleInventory() {
     document.exitPointerLock();
   } else {
     inventoryScreen.classList.add('hidden');
-    container.requestPointerLock();
+    requestGamePointerLock();
     // Reinitialize hand if it was removed
     if (!handMesh) {
       initHand();
@@ -1324,7 +1389,9 @@ function onPointerLockChange() {
     pauseScreen.classList.add('hidden');
     state.paused = false;
     // Не вызываем beginGame() здесь, так как игра уже инициализирована через START_GAME
-  } else if (state.started && !state.dead && !state.inventoryOpen) {
+  } else if (state.started && !state.dead && !state.inventoryOpen && !hasModalOverlayOpen()) {
+    // Не показываем паузу, пока открыто модальное окно с курсором
+    // (например, выбор второй школы на 10 уровне)
     state.paused = true;
     state.keys = {};
     pauseScreen.classList.remove('hidden');
@@ -1445,7 +1512,7 @@ function bindEvents() {
 
   resumeBtn.addEventListener('click', () => {
     state.paused = false;
-    container.requestPointerLock();
+    requestGamePointerLock();
   });
 
   restartBtn.addEventListener('click', () => {
@@ -1521,7 +1588,7 @@ function closeCheatConsole() {
   cheatConsoleOpen = false;
   cheatConsoleEl.classList.add('hidden');
   consoleInputEl.value = '';
-  container.requestPointerLock();
+  requestGamePointerLock();
 }
 
 function logToConsole(message, type = 'info') {

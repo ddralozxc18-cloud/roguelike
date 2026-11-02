@@ -64,7 +64,13 @@ function respawnPlayer() {
   recalcStats();         // Из systems/stats.js
   
   deathScreen?.classList.add('hidden');
-  container.requestPointerLock();
+  // Захват через общий хелпер game.js (с фолбэками), а не напрямую:
+  // прямой вызов может быть отклонён браузером после выхода из блокировки
+  if (typeof window.requestGamePointerLock === 'function') {
+    window.requestGamePointerLock();
+  } else {
+    container.requestPointerLock();
+  }
 }
 
 // ─────────────────────────────────────────────────────
