@@ -1203,7 +1203,6 @@ function beginGame() {
 // (или завис после экрана выбора школы), сначала освобождаем его — иначе
 // requestPointerLock() молча падает с pointerlockerror и остаётся видимый
 // курсор без управления камерой.
-let pendingLockRetries = 0;
 function requestGamePointerLock() {
   if (!isActive()) return; // открыто модальное окно (выбор школы) — не блокируем
   const pl = document.pointerLockElement;
@@ -1222,26 +1221,27 @@ function requestGamePointerLock() {
   } catch (err) {
     console.warn('requestPointerLock failed', err);
   }
-  // Страховка: если браузер отклонил запрос (например, из-за только что
-  // снятого блока или «cooling-off» периода после выхода из блокировки),
-  // повторяем несколько раз в течение секунды.
-  if (document.pointerLockElement !== container && pendingLockRetries < 5) {
-    pendingLockRetries++;
-    setTimeout(requestGamePointerLock, 120);
-  } else {
-    pendingLockRetries = 0;
-  }
+  // Если браузер отклонил запрос (нет user activation / «cooling-off» период
+  // после выхода из блокировки), повторит страховочный setInterval ниже —
+  // здесь дополнительных таймеров не нужно, чтобы не создавать гонку.
 }
 
 // Доступ из ui-скриптов (school_select и др.)
 window.requestGamePointerLock = requestGamePointerLock;
 
-// Фолбэк: если по какой-то причине браузер не дал захватить указатель после
-// выбора школы (видимый курсор, камера не крутится), клик по игровому окну
-// повторно запрашивает блокировку.
+// Страховочный цикл: если браузер отклонил запрос блокировки после выбора
+// школы (нет user activation / «cooling-off»), автоматически повторяем
+// попытку каждые 300 мс, пока игра активна и курсор не захвачен.
+setInterval(() => {
+  if (document.pointerLockElement === container) return; // уже захвачено
+  if (!isActive()) return; // пауза/инвентарь/окно выбора — курсор нужен видимым
+  requestGamePointerLock();
+}, 300);
+
+// Фолбэк: клик по игровому окну (жест пользователя — браузер всегда даёт
+// захватить указатель в ответ на него) мгновенно запрашивает блокировку.
 container.addEventListener('click', () => {
   if (isActive() && document.pointerLockElement !== container) {
-    pendingLockRetries = 0;
     requestGamePointerLock();
   }
 });
