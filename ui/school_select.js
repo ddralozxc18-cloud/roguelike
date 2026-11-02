@@ -46,8 +46,6 @@
     card.innerHTML = `
       ${imgHtml}
       <div class="school-card-body">
-        <div class="school-card-name">${school.name}</div>
-        <div class="school-card-ability">${ability.icon} ${ability.name}</div>
         <div class="school-card-desc">${ability.description}</div>
       </div>`;
 

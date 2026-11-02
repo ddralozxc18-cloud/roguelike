@@ -38,12 +38,12 @@ const INNATE_ABILITIES = {
     name: 'Scorching Flame',
     icon: '🔥',
     color: '#ff7a2a',
-    // Аналог Radiance из Dota 2: постоянная аура ожога вокруг игрока
+    // Постоянная аура ожога вокруг игрока
     kind: 'passive_aura',
     radius: 7,               // радиус ауры (юниты)
     damagePerTick: 3,        // базовый урон за тик
     tickInterval: 0.55,      // секунд между тиками
-    description: 'Постоянная аура пламени: выжигает всех врагов рядом (аналог Radiance).',
+    description: 'Постоянная аура пламени: выжигает всех врагов рядом.',
   },
   space: {
     id: 'parkour',

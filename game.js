@@ -770,7 +770,7 @@ function explodeParkourShot(shot) {
 }
 
 // ---------------------------------------------------------
-// Scorching Flame (аналог Radiance из Dota 2):
+// Scorching Flame:
 // аура ожога — постоянный урон по всем целям рядом с игроком
 // ---------------------------------------------------------
 const SCORCH = { radius: 7, tickInterval: 0.55, baseDamagePerTick: 3 };
@@ -1162,6 +1162,8 @@ function beginGame() {
   menuFrameContainer.classList.add('hidden');
   hudEl.classList.remove('hidden');
   resetPlayerPosition();
+  // Инициализация статов из data/stats.js + systems/stats.js (броня, резисты и т.д.)
+  if (typeof recalcStats === 'function') recalcStats();
   updateHUD();
   renderInventoryGrid();
   initHand();
@@ -1261,6 +1263,8 @@ function toggleInventory() {
       initHand();
     }
   }
+  // Окошко статов слева в инвентаре (ui/inventory.js)
+  if (typeof window.syncStatsInventoryPanel === 'function') window.syncStatsInventoryPanel();
 }
 
 // ---------------------------------------------------------
