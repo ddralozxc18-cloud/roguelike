@@ -787,9 +787,11 @@ color: var(--gold-bright);
   letter-spacing: 0.04em;
 }
 .school-card-ability{
-  font-size: 15px;
+  font-family: var(--font-display);
+  font-size: 17px;
   font-weight: 600;
-  color: var(--gold-bright);
+  letter-spacing: 0.03em;
+  color: var(--school-color);
 }
 .school-card-desc{
   font-size: 13px;
