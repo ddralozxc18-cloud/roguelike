@@ -1806,7 +1806,7 @@ function animate() {
   const dt = Math.min(clock.getDelta(), 0.1);
   const elapsed = clock.getElapsedTime();
   updateCollectiblesAnim(dt, elapsed);
-  // Chest idle animation (hover + spin) — runs even while paused
+  // Chest idle — сундуки стоят на месте (без парения и вращения)
   if (typeof updateChestsAnim === 'function') updateChestsAnim(dt, elapsed);
   if (!state.started) {
     idleCameraUpdate(elapsed);
