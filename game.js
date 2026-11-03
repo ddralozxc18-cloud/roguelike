@@ -1080,7 +1080,7 @@ function updatePlayer(dt, elapsed) {
   const hpRegenDisplay = (elapsed - state.lastDamageTime > CONFIG.hpRegenDelay) ? CONFIG.hpRegenRate : 0;
   const manaRegenDisplay = CONFIG.manaRegenRate;
   hpRegenEl.textContent = '+' + hpRegenDisplay.toFixed(1) + '/s';
-  manaRegenEl.textContent = '+' + manaRegenDisplay.toFixed(1) + '/сек';
+  manaRegenEl.textContent = '+' + manaRegenDisplay.toFixed(1) + '/sec';
   // Вертикальная физика (гравитация и приземление)
   state.velocityY += CONFIG.gravity * dt;
   let newY = camera.position.y - state.bobOffset + state.velocityY * dt;
@@ -1426,9 +1426,11 @@ function onPointerLockChange() {
     pauseScreen.classList.add('hidden');
     state.paused = false;
     // Don't call beginGame() here — the game was already initialized via START_GAME
-  } else if (state.started && !state.dead && !state.inventoryOpen && !hasModalOverlayOpen()) {
+  } else if (state.started && !state.paused && !state.dead && !state.inventoryOpen && !hasModalOverlayOpen()) {
     // Don't show the pause menu while a modal window with a visible cursor
-    // is open (e.g. second-school selection at level 10)
+    // is open (e.g. second-school selection at level 10), and never re-open
+    // it when we are already paused — otherwise pressing Escape inside the
+    // pause menu would stack a second pause screen over the first one.
     state.paused = true;
     state.keys = {};
     pauseScreen.classList.remove('hidden');
@@ -1473,7 +1475,12 @@ function onKeyDown(e) {
     // (we are already in the pause menu, or never got a lock), Escape must
     // resume the game directly, otherwise the menu could not be closed.
     if (state.inventoryOpen) { toggleInventory(); return; }
-    if (state.paused && document.pointerLockElement !== container) {
+    if (state.paused) {
+      // Already paused: this Escape did NOT come from unlocking the pointer
+      // (there is nothing to unlock), so it means "close the pause menu".
+      // Without this check we would call exitPointerLock() first and the
+      // resulting pointerlockchange event would re-open a second pause
+      // screen stacked over the first one.
       e.preventDefault();
       resumeFromPause();
     }
@@ -1648,7 +1655,7 @@ function logToConsole(message, type = 'info') {
 }
 
 // ---------------------------------------------------------
-// Встроенная команда help: список строится автоматически
+// Built-in "help" command: the list is built automatically
 // из реестра CHEAT_COMMANDS — при добавлении новых команд
 // обновлять её НЕ нужно.
 // ---------------------------------------------------------
