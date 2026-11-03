@@ -1,4 +1,4 @@
-// systems/chests.js
+// systems/chest_entities.js
 const activeChests = [];   // массив живых сундуков в сцене
 
 // ─────────────────────────────────────────────────────

@@ -208,7 +208,7 @@ function initScene() {
   camera.position.set(0, CONFIG.eyeHeight, 6);
   scene.add(camera); // Add the camera to the scene right at initialization
 
-  // Expose for UI/systems modules (e.g. chest cheat commands in systems/chests.js)
+  // Expose for UI/systems modules (e.g. chest cheat commands in systems/chest_entities.js)
   window.scene = scene;
   window.camera = camera;
 
@@ -2327,7 +2327,7 @@ function init() {
   registerBuiltinCheatCommands();
   ensureInnateCheatCommandsRegistered();
   // Chest spawn commands (chest_trash/.../chest_unemployed) are defined in
-  // systems/chests.js but must be registered only now — at that file's load
+  // systems/chest_entities.js but must be registered only now — at that file's load
   // time the cheat registry (systems/cheats.js) did not exist yet.
   if (typeof registerChestCheatCommands === 'function') registerChestCheatCommands();
   initScene();
