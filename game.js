@@ -1,6 +1,6 @@
 /* =========================================================
-ПУСТОШИ — низкополигональная 3D-бродилка от первого лица
-Чистый Three.js (r128), без сборщиков и модулей.
+RYGALIK — a low-poly first-person 3D walker
+Pure Three.js (r128), no bundlers, no modules.
 ========================================================= */
 (function () {
 'use strict';
@@ -20,7 +20,7 @@ const CONFIG = {
   groundAccelerate: 40,
   // Искусственно ограниченный wishspeed в воздухе — позволяет
   // разгоняться только зигзагами (strafe-акселерация)
-  airWishSpeed: 0.2,          // ~30 units/sec в терминах Source (30/u_scale)
+  airWishSpeed: 0.2,          // ~30 units/sec in Source terms (30/u_scale)
   // Ускорение в воздухе (аналог sv_airaccelerate, обычно 10–15)
   airAccelerate: 12,
   // Коэффициенты трения Source (friction / stopspeed)
@@ -39,42 +39,42 @@ const CONFIG = {
 
 // Определения предметов инвентаря
 const ITEM_DEFS = {
-  gem:            { name: 'Кристалл',           icon: '◆', color: '#7dd3fc', use: null },
-  potion_hp:      { name: 'Зелье здоровья',      icon: '♥', color: '#e0403a', use: (s) => { s.hp = Math.min(s.maxHp, s.hp + 35); } },
-  potion_mana:    { name: 'Зелье маны',          icon: '✦', color: '#4c8dfb', use: (s) => { s.mana = Math.min(s.maxMana, s.mana + 40); } },
+  gem:            { name: 'Crystal',           icon: '◆', color: '#7dd3fc', use: null },
+  potion_hp:      { name: 'Health Potion',      icon: '♥', color: '#e0403a', use: (s) => { s.hp = Math.min(s.maxHp, s.hp + 35); } },
+  potion_mana:    { name: 'Mana Potion',          icon: '✦', color: '#4c8dfb', use: (s) => { s.mana = Math.min(s.maxMana, s.mana + 40); } },
 };
 
 // ---------------------------------------------------------
-// Состояние игрока — слоты экипировки
+// Player state — equipment slots
 // ---------------------------------------------------------
 const equipmentState = {
-  hand: null,              // Слот руки (по умолчанию стандартная рука)
-  active1: null,           // Активный слот 1 (клавиша Shift)
-  active2: null,           // Активный слот 2 (клавиша C)
-  passive1: null,          // Пассивный слот 1
-  passive2: null,          // Пассивный слот 2
-  innate: null,            // Отдельная ячейка врождённой способности (не пассивный слот)
+  hand: null,              // Hand slot (defaults to the standard hand)
+  active1: null,           // Active slot 1 (Shift key)
+  active2: null,           // Active slot 2 (C key)
+  passive1: null,          // Passive slot 1
+  passive2: null,          // Passive slot 2
+  innate: null,            // Dedicated innate ability cell (not a passive slot)
 };
 
-// Стандартная рука по умолчанию
+// Default standard hand
 const DEFAULT_HAND = {
   id: 'default_hand',
-  name: 'Рука',
+  name: 'Hand',
   icon: '✊',
   damage: 1,
 };
 
-// Инициализация руки по умолчанию
+// Initialize the default hand
 equipmentState.hand = DEFAULT_HAND;
 
 // ---------------------------------------------------------
-// Получить текущий урон руки
+// Get current hand damage
 // ---------------------------------------------------------
 function getHandDamage() {
   if (equipmentState.hand && typeof equipmentState.hand.damage === 'number') {
     return equipmentState.hand.damage;
   }
-  return 1; // Урон по умолчанию
+  return 1; // Default damage
 }
 
 // ---------------------------------------------------------
@@ -158,7 +158,7 @@ const hudActive1Icon = document.getElementById('hud-active1-icon');
 const hudActive2Icon = document.getElementById('hud-active2-icon');
 const pickupPromptEl = document.getElementById('pickup-prompt');
 const inventoryGridEl = document.getElementById('inventory-grid');
-const equipmentContainerEl = document.getElementById('equipment-container'); // ФИКС №2
+const equipmentContainerEl = document.getElementById('equipment-container'); // FIX #2
 const damageVignetteEl = document.getElementById('damage-vignette');
 const fpsCounterEl = document.getElementById('fps-counter');
 const cheatConsoleEl = document.getElementById('cheat-console');
@@ -172,8 +172,8 @@ let scene, camera, renderer, clock;
 const collectibles = [];
 const obstacles = [];
 const flares = [];
-const parkourShots = []; // снаряды двойного прыжка (space)
-const targets = []; // Массив мишеней bob/superbob
+const parkourShots = []; // double-jump projectiles (space)
+const targets = []; // Array of bob/superbob targets
 let damageFlashTimeout = null;
 let fpsAccum = 0, fpsFrames = 0, fpsTimer = 0;
 
@@ -189,7 +189,7 @@ let walkSound1 = null;
 let walkSound2 = null;
 let walkSoundCurrent = null;
 let lastFootstepTime = 0;
-let footstepInterval = 0.5; // Интервал между шагами (будет меняться от скорости)
+let footstepInterval = 0.5; // Interval between footsteps (varies with speed)
 
 // ---------------------------------------------------------
 // Инициализация сцены, освещения и рендера
@@ -203,7 +203,7 @@ function initScene() {
   camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 300);
   camera.rotation.order = 'YXZ';
   camera.position.set(0, CONFIG.eyeHeight, 6);
-  scene.add(camera); // Добавляем камеру в сцену сразу при инициализации
+  scene.add(camera); // Add the camera to the scene right at initialization
 
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -239,7 +239,7 @@ function initScene() {
     walkSound1.loop = false;
     walkSound2.loop = false;
   } catch (e) {
-    console.warn('Звуки ходьбы не загружены:', e);
+    console.warn('Footstep sounds failed to load:', e);
   }
 }
 
@@ -515,17 +515,17 @@ function renderInventoryGrid() {
   // Слот руки
   const handWrapper = document.createElement('div');
   handWrapper.className = 'equip-slot-wrapper';
-  handWrapper.appendChild(createEquipmentSlot('hand', equipmentState.hand, 'Рука'));
+  handWrapper.appendChild(createEquipmentSlot('hand', equipmentState.hand, 'Hand'));
   mainRow.appendChild(handWrapper);
 
   // Активные слоты (Shift и C)
   const activeSlotsContainer = document.createElement('div');
   activeSlotsContainer.className = 'active-slots-container';
   activeSlotsContainer.appendChild(
-    createEquipmentSlot('active1', equipmentState.active1, 'Активный 1 (Shift)')
+    createEquipmentSlot('active1', equipmentState.active1, 'Active 1 (Shift)')
   );
   activeSlotsContainer.appendChild(
-    createEquipmentSlot('active2', equipmentState.active2, 'Активный 2 (C)')
+    createEquipmentSlot('active2', equipmentState.active2, 'Active 2 (C)')
   );
   mainRow.appendChild(activeSlotsContainer);
 
@@ -533,10 +533,10 @@ function renderInventoryGrid() {
   const passiveSlotsContainer = document.createElement('div');
   passiveSlotsContainer.className = 'passive-slots-container';
   passiveSlotsContainer.appendChild(
-    createEquipmentSlot('passive1', equipmentState.passive1, 'Пассивный 1')
+    createEquipmentSlot('passive1', equipmentState.passive1, 'Passive 1')
   );
   passiveSlotsContainer.appendChild(
-    createEquipmentSlot('passive2', equipmentState.passive2, 'Пассивный 2')
+    createEquipmentSlot('passive2', equipmentState.passive2, 'Passive 2')
   );
   mainRow.appendChild(passiveSlotsContainer);
 
@@ -544,7 +544,7 @@ function renderInventoryGrid() {
   const innateSlotsContainer = document.createElement('div');
   innateSlotsContainer.className = 'innate-slots-container';
   innateSlotsContainer.appendChild(
-    createEquipmentSlot('innate', equipmentState.innate, 'Врождённая способность')
+    createEquipmentSlot('innate', equipmentState.innate, 'Innate Ability')
   );
   mainRow.appendChild(innateSlotsContainer);
 
@@ -562,7 +562,7 @@ function renderInventoryGrid() {
     if (entry && entry.count > 0) {
       slot.classList.add('filled');
       slot.style.color = entry.def.color;
-      const usable = entry.def.use ? ' — исп.' : '';
+      const usable = entry.def.use ? ' — use' : '';
       slot.innerHTML = entry.def.icon +
         '<span class="inv-count">' + entry.count + '</span>' +
         '<span class="inv-tooltip">' + entry.def.name + usable + '</span>';
@@ -666,7 +666,7 @@ function updateHandAnimation(dt) {
   }
   // Анимация удара: рука движется вперёд и немного вверх
   const t = elapsed / punchDuration;
-  const punchProgress = Math.sin(t * Math.PI); // Плавное движение туда-обратно
+  const punchProgress = Math.sin(t * Math.PI); // Smooth there-and-back motion
   // Позиция во время удара
   const forwardDist = 0.15 * punchProgress;
   const upDist = 0.08 * punchProgress;
@@ -699,10 +699,10 @@ function doJump(isDouble) {
 // и взрывается при касании земли (y <= 0.15). Взрыв наносит урон только
 // целям, игроку он вреда не причиняет.
 const PARKOUR = {
-  speed: 16,             // скорость падения снаряда (м/с)
-  maxAge: 2.5,           // время жизни (сек)
-  spawnDrop: CONFIG.eyeHeight * 0.5, // насколько ниже камеры появляется снаряд
-  radius: 2.2,           // радиус area-урона
+  speed: 16,             // projectile fall speed (m/s)
+  maxAge: 2.5,           // lifetime (seconds)
+  spawnDrop: CONFIG.eyeHeight * 0.5, // how far below the camera the projectile spawns
+  radius: 2.2,           // area-damage radius
 };
 function spawnParkourProjectile() {
   const geo = new THREE.SphereGeometry(0.16, 8, 6);
@@ -784,7 +784,7 @@ function getScorchParams() {
   };
 }
 let scorchTickAccum = 0;
-const scorchPulses = []; // визуальные импульсы ауры
+const scorchPulses = []; // visual aura pulses
 
 function updateScorchAura(dt) {
   if (!hasInnateAbility('scorching_flame')) return;
@@ -866,7 +866,7 @@ function applyInnateSchool(schoolId) {
 window.applyInnateSchool = applyInnateSchool;
 window.hasInnateAbility = hasInnateAbility;
 window.beginGame = beginGame;
-window.gameState = state; // ссылка на состояние для UI-систем (school_select и др.)
+window.gameState = state; // state reference for UI systems (school_select etc.)
 
 // ---------------------------------------------------------
 // Способность: вспышка маны (ПКМ)
@@ -925,7 +925,7 @@ function updateNearestPickup() {
   }
   state.nearestPickup = nearest;
   if (nearest) {
-    pickupPromptEl.textContent = 'E — поднять: ' + nearest.def.name;
+    pickupPromptEl.textContent = 'E — pick up: ' + nearest.def.name;
     pickupPromptEl.classList.remove('hidden');
   } else {
     pickupPromptEl.classList.add('hidden');
@@ -936,13 +936,13 @@ function updateNearestPickup() {
 // Игрок: движение, физика, характеристики
 // ---------------------------------------------------------
 function isActive() {
-  // Любое модальное окно с курсором (выбор школы и т.п.) блокирует управление
+  // Any modal window with a visible cursor (school select etc.) blocks input
   if (typeof hasModalOverlayOpen === 'function' && hasModalOverlayOpen()) return false;
   if (typeof schoolSelectIsOpen === 'function' && schoolSelectIsOpen()) return false;
   return state.started && !state.paused && !state.inventoryOpen && !state.dead && !cheatConsoleOpen;
 }
 
-// Есть ли открытое модальное окно, требующее видимого курсора
+// Is there an open modal window that requires a visible cursor?
 function hasModalOverlayOpen() {
   const ids = [
     'school-select-screen',
@@ -1079,7 +1079,7 @@ function updatePlayer(dt, elapsed) {
   // Обновление показателей восстановления в HUD
   const hpRegenDisplay = (elapsed - state.lastDamageTime > CONFIG.hpRegenDelay) ? CONFIG.hpRegenRate : 0;
   const manaRegenDisplay = CONFIG.manaRegenRate;
-  hpRegenEl.textContent = '+' + hpRegenDisplay.toFixed(1) + '/сек';
+  hpRegenEl.textContent = '+' + hpRegenDisplay.toFixed(1) + '/s';
   manaRegenEl.textContent = '+' + manaRegenDisplay.toFixed(1) + '/сек';
   // Вертикальная физика (гравитация и приземление)
   state.velocityY += CONFIG.gravity * dt;
@@ -1199,16 +1199,16 @@ function beginGame() {
   requestGamePointerLock();
 }
 
-// Захват курсора для игры. Если указатель уже заблокирован другим элементом
-// (или завис после экрана выбора школы), сначала освобождаем его — иначе
-// requestPointerLock() молча падает с pointerlockerror и остаётся видимый
-// курсор без управления камерой.
+// Acquire the game pointer lock. If the pointer is already locked by another
+// element (or stuck after the school-select screen), release it first —
+// otherwise requestPointerLock() fails silently with pointerlockerror and a
+// visible cursor stays behind with no camera control.
 function requestGamePointerLock() {
-  if (!isActive()) return; // открыто модальное окно (выбор школы) — не блокируем
+  if (!isActive()) return; // modal window open (school select) — don't lock
   const pl = document.pointerLockElement;
-  if (pl === container) return; // уже захвачено
+  if (pl === container) return; // already locked
   if (pl) {
-    // был захват на другом элементе — дождёмся pointerlockchange и повторим
+    // locked on another element — wait for pointerlockchange and retry
     document.exitPointerLock();
     setTimeout(requestGamePointerLock, 60);
     return;
@@ -1226,20 +1226,43 @@ function requestGamePointerLock() {
   // здесь дополнительных таймеров не нужно, чтобы не создавать гонку.
 }
 
-// Доступ из ui-скриптов (school_select и др.)
+// Access from UI scripts (school_select etc.)
 window.requestGamePointerLock = requestGamePointerLock;
 
-// Страховочный цикл: если браузер отклонил запрос блокировки после выбора
-// школы (нет user activation / «cooling-off»), автоматически повторяем
-// попытку каждые 300 мс, пока игра активна и курсор не захвачен.
+// Flag: the player just left the pause menu, but the browser may have
+// rejected the new pointer-lock request (cooling-off after Esc unlock).
+let pendingResumeLock = false;
+
+// Safety loop: if the browser rejected the lock request (no user activation
+// / cooling-off period), automatically retry every 300 ms while the game is
+// active and the pointer is not locked.
 setInterval(() => {
-  if (document.pointerLockElement === container) return; // уже захвачено
-  if (!isActive()) return; // пауза/инвентарь/окно выбора — курсор нужен видимым
+  if (document.pointerLockElement === container) return; // already locked
+  if (!isActive()) return; // pause/inventory/school select — cursor must stay visible
   requestGamePointerLock();
 }, 300);
 
-// Фолбэк: клик по игровому окну (жест пользователя — браузер всегда даёт
-// захватить указатель в ответ на него) мгновенно запрашивает блокировку.
+// Second loop — recovery after leaving the pause menu via Escape: browsers
+// often reject a new lock request right after an unlock (cooling-off), so we
+// keep retrying bypassing isActive() until the lock succeeds. If another
+// modal window opens in the meantime — cancel the intent.
+setInterval(() => {
+  if (!pendingResumeLock) return;
+  if (document.pointerLockElement === container) {
+    pendingResumeLock = false;
+    state.paused = false;
+    pauseScreen.classList.add('hidden');
+    return;
+  }
+  if (!state.started || state.dead || state.inventoryOpen || hasModalOverlayOpen()) {
+    pendingResumeLock = false; // user opened another window — cancel
+    return;
+  }
+  requestGamePointerLock();
+}, 300);
+
+// Fallback: clicking the game viewport (a user gesture — browsers always
+// allow locking in response to one) requests the lock immediately.
 container.addEventListener('click', () => {
   if (isActive() && document.pointerLockElement !== container) {
     requestGamePointerLock();
@@ -1363,16 +1386,16 @@ function onMouseDown(e) {
 function checkTargetHit() {
   const raycaster = new THREE.Raycaster();
   raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-  raycaster.far = 2.5; // Ограничиваем дальность проверки луча
+  raycaster.far = 2.5; // Limit raycast check distance
   const targetMeshes = targets.map(t => t.mesh);
   const intersects = raycaster.intersectObjects(targetMeshes);
   if (intersects.length > 0) {
     const hitMesh = intersects[0].object;
     const target = targets.find(t => t.mesh === hitMesh);
     if (target) {
-      // Получаем урон от текущей руки
+      // Get damage from the current hand
       let damage = getHandDamage();
-      // Врождённая способность «Ambassador of Luck»: ±10% к любому урону
+      // Innate ability "Ambassador of Luck": ±10% to any damage
       if (typeof rollLuckDamage === 'function') damage = rollLuckDamage(damage);
       // Deal damage and show immediately
       applyDamageToTarget(target, damage);
@@ -1383,15 +1406,29 @@ function checkTargetHit() {
 // Expose checkTargetHit globally for cheat console access
 window.checkTargetHit = checkTargetHit;
 
+// Resume the game from the pause menu: hide the screen, clear the flag and
+// re-acquire pointer lock. Shared by the Resume button and the Escape key.
+function resumeFromPause() {
+  state.paused = false;
+  pauseScreen.classList.add('hidden');
+  // Remember that we just resumed: if the browser refuses the new lock
+  // request (Escape-to-unlock "cooling-off" period), the safety loop below
+  // keeps retrying — otherwise the game would stay stuck in a half-paused
+  // state with no visible pause menu and no camera control.
+  pendingResumeLock = true;
+  requestGamePointerLock();
+}
+
 function onPointerLockChange() {
   const locked = document.pointerLockElement === container;
   if (locked) {
+    pendingResumeLock = false;
     pauseScreen.classList.add('hidden');
     state.paused = false;
-    // Не вызываем beginGame() здесь, так как игра уже инициализирована через START_GAME
+    // Don't call beginGame() here — the game was already initialized via START_GAME
   } else if (state.started && !state.dead && !state.inventoryOpen && !hasModalOverlayOpen()) {
-    // Не показываем паузу, пока открыто модальное окно с курсором
-    // (например, выбор второй школы на 10 уровне)
+    // Don't show the pause menu while a modal window with a visible cursor
+    // is open (e.g. second-school selection at level 10)
     state.paused = true;
     state.keys = {};
     pauseScreen.classList.remove('hidden');
@@ -1431,7 +1468,15 @@ function onKeyDown(e) {
     return;
   }
   if (e.code === 'Escape') {
-    if (state.inventoryOpen) toggleInventory();
+    // Escape is consumed by the browser to exit pointer lock — the pause menu
+    // then opens via onPointerLockChange. If the pointer was NOT locked
+    // (we are already in the pause menu, or never got a lock), Escape must
+    // resume the game directly, otherwise the menu could not be closed.
+    if (state.inventoryOpen) { toggleInventory(); return; }
+    if (state.paused && document.pointerLockElement !== container) {
+      e.preventDefault();
+      resumeFromPause();
+    }
     return;
   }
   // Обработка клавиш для активных слотов (Shift и C)
@@ -1511,8 +1556,7 @@ function bindEvents() {
   });
 
   resumeBtn.addEventListener('click', () => {
-    state.paused = false;
-    requestGamePointerLock();
+    resumeFromPause();
   });
 
   restartBtn.addEventListener('click', () => {
@@ -1534,7 +1578,7 @@ function bindEvents() {
   fpsToggle.addEventListener('change', () => {});
 
   document.addEventListener('pointerlockchange', onPointerLockChange);
-  document.addEventListener('pointerlockerror', () => console.warn('Не удалось захватить курсор'));
+  document.addEventListener('pointerlockerror', () => console.warn('Failed to acquire pointer lock'));
   document.addEventListener('contextmenu', (e) => e.preventDefault());
   window.addEventListener('mousemove', onMouseMove);
   container.addEventListener('mousedown', onMouseDown);
@@ -1610,8 +1654,8 @@ function logToConsole(message, type = 'info') {
 // ---------------------------------------------------------
 function printHelp() {
   const cmds = (typeof getCheatCommands === 'function') ? getCheatCommands() : [];
-  logToConsole('═══ Список доступных команд ═══', 'info');
-  // Группировка по категориям (порядок первого появления категории)
+  logToConsole('═══ Available commands ═══', 'info');
+  // Group by category (first-appearance order of each category)
   const byCat = new Map();
   for (const c of cmds) {
     if (!byCat.has(c.category)) byCat.set(c.category, []);
@@ -1623,7 +1667,7 @@ function printHelp() {
       logToConsole(`  ${c.usage} — ${c.description}`, 'success');
     }
   }
-  logToConsole('Всего команд: ' + cmds.length, 'info');
+  logToConsole('Total commands: ' + cmds.length, 'info');
 }
 
 function executeCheatCommand(cmd) {
@@ -1636,14 +1680,14 @@ function executeCheatCommand(cmd) {
   const args = parts.slice(1);
 
   try {
-    // Команды из реестра (systems/cheats.js)
+    // Commands from the registry (systems/cheats.js)
     const registered = (typeof findCheatCommand === 'function') ? findCheatCommand(command) : null;
     if (registered && typeof registered.run === 'function') {
       registered.run(args, CHEAT_CTX);
       return;
     }
 
-    // Генераторы вида lvlup_12 (префикс команды + числовой суффикс)
+    // Generators like lvlup_12 (command prefix + numeric suffix)
     const underscoreIdx = command.indexOf('_');
     if (underscoreIdx > 0) {
       const baseName = command.slice(0, underscoreIdx);
@@ -1662,14 +1706,14 @@ function executeCheatCommand(cmd) {
         break;
       }
       default:
-        logToConsole(`Неизвестная команда: ${command}. Введите "help" для списка команд.`, 'error');
+        logToConsole(`Unknown command: ${command}. Type "help" for the command list.`, 'error');
     }
   } catch (err) {
-    logToConsole(`Ошибка: ${err.message}`, 'error');
+    logToConsole(`Error: ${err.message}`, 'error');
   }
 }
 
-// Контекст, передаваемый обработчикам команд из реестра
+// Context passed to registry command handlers
 const CHEAT_CTX = {
   game: {
     state,
@@ -1684,17 +1728,17 @@ const CHEAT_CTX = {
 };
 
 // ---------------------------------------------------------
-// Регистрация встроенных чит-команд (реестр — systems/cheats.js)
-// help не перечисляется: она печатает актуальный список сама.
-// Функция вызывается из init() — после подключения всех data-скриптов.
+// Register built-in cheat commands (registry: systems/cheats.js)
+// help is not listed here: it prints the live list itself.
+// Called from init() — after all data scripts are loaded.
 // ---------------------------------------------------------
 function registerBuiltinCheatCommands() {
   if (typeof registerCheatCommand !== 'function') return;
   registerCheatCommand({
     name: 'lvlup',
     usage: 'lvlup [N] / lvlup_N',
-    description: 'Повысить уровень (N раз, по умолчанию 1)',
-    category: 'Персонаж',
+    description: 'Level up (N times, default 1)',
+    category: 'Character',
     kind: 'generator',
     run: (args) => {
       const levels = parseInt(args[0], 10) || 1;
@@ -1711,48 +1755,48 @@ function registerBuiltinCheatCommands() {
         }
       }
       updateHUD();
-      logToConsole(`Повышен уровень на ${levels}. Текущий уровень: ${state.level}`, 'success');
+      logToConsole(`Leveled up by ${levels}. Current level: ${state.level}`, 'success');
     },
   });
 
   registerCheatCommand({
     name: 'rhp',
-    description: 'Восстановить здоровье до максимума',
-    category: 'Персонаж',
+    description: 'Restore health to maximum',
+    category: 'Character',
     run: () => {
       state.hp = state.maxHp;
       updateHUD();
-      logToConsole('Здоровье восстановлено до максимума', 'success');
+      logToConsole('Health restored to maximum', 'success');
     },
   });
 
   registerCheatCommand({
     name: 'rmn',
-    description: 'Восстановить ману до максимума',
-    category: 'Персонаж',
+    description: 'Restore mana to maximum',
+    category: 'Character',
     run: () => {
       state.mana = state.maxMana;
       updateHUD();
-      logToConsole('Мана восстановлена до максимума', 'success');
+      logToConsole('Mana restored to maximum', 'success');
     },
   });
 
   registerCheatCommand({
     name: 'rst',
-    description: 'Восстановить здоровье и ману до максимума',
-    category: 'Персонаж',
+    description: 'Restore health and mana to maximum',
+    category: 'Character',
     run: () => {
       state.hp = state.maxHp;
       state.mana = state.maxMana;
       updateHUD();
-      logToConsole('Здоровье и мана восстановлены до максимума', 'success');
+      logToConsole('Health and mana restored to maximum', 'success');
     },
   });
 
   registerCheatCommand({
     name: 'spawn_bob',
-    description: 'Создать мишень Bob (HP: 100, Regen: 2)',
-    category: 'Мишени',
+    description: 'Spawn a Bob target (HP: 100, Regen: 2)',
+    category: 'Targets',
     run: () => {
       spawnTarget('bob');
       logToConsole('Создан Bob (HP: 100, Regen: 2, Mana: 100, ManaRegen: 2)', 'success');
@@ -1762,17 +1806,17 @@ function registerBuiltinCheatCommands() {
   registerCheatCommand({
     name: 'spawn_superbob',
     description: 'Создать бессмертную мишень SuperBob',
-    category: 'Мишени',
+    category: 'Targets',
     run: () => {
       spawnTarget('superbob');
-      logToConsole('Создан SuperBob (бессмертный)', 'success');
+      logToConsole('Spawned SuperBob (immortal)', 'success');
     },
   });
 
   registerCheatCommand({
     name: 'delall_bob',
-    description: 'Удалить все мишени',
-    category: 'Мишени',
+    description: 'Remove all targets',
+    category: 'Targets',
     run: () => {
       let count = targets.length;
       for (const target of targets) {
@@ -1788,27 +1832,27 @@ function registerBuiltinCheatCommands() {
         }
       }
       targets.length = 0;
-      logToConsole(`Удалено мишеней: ${count}`, 'success');
+      logToConsole(`Targets removed: ${count}`, 'success');
     },
   });
 
   registerCheatCommand({
     name: 'help',
     usage: 'help / ?',
-    description: 'Показать весь список команд (список строится автоматически из реестра)',
-    category: 'Консоль',
+    description: 'Show the full command list (built automatically from the registry)',
+    category: 'Console',
     run: () => printHelp(),
   });
 
   registerInnateCheatCommands();
 }
 
-// Врождённые школы регистрируются динамически из данных INNATE_ABILITIES —
-// при добавлении новой школы команда innate_<id> появится в help сама.
-// Функция идемпотентна (дубликаты не плодит) и вызывается:
-//   1) из registerBuiltinCheatCommands() при init();
-//   2) повторно на DOMContentLoaded / коротких интервалах — на случай,
-//      если data-скрипты ещё не успели подключиться к моменту init().
+// Innate schools are registered dynamically from INNATE_ABILITIES —
+// adding a new school makes innate_<id> appear in help automatically.
+// The function is idempotent (no duplicates) and is called:
+//   1) from registerBuiltinCheatCommands() during init();
+//   2) again on DOMContentLoaded / short intervals in case the data
+//      scripts have not finished loading when init() runs.
 function registerInnateCheatCommands() {
   if (typeof registerCheatCommand !== 'function') return false;
   const abilities =
@@ -1821,20 +1865,20 @@ function registerInnateCheatCommands() {
     if (!a || !a.name) continue;
     registerCheatCommand({
       name: 'innate_' + schoolId,
-      description: `Врождённая магия: ${a.name} (${a.description})`,
-      category: 'Врождённая магия',
+      description: `Innate magic: ${a.name} (${a.description})`,
+      category: 'Innate Magic',
       run: () => {
         applyInnateSchool(schoolId);
-        logToConsole(`Врождённая магия: ${a.name}`, 'success');
+        logToConsole(`Innate magic: ${a.name}`, 'success');
       },
     });
   }
   return true;
 }
 
-// Страховка: если по какой-то причине на момент init() данные школ ещё
-// не доступны, регистрация повторяется до появления INNATE_ABILITIES.
-// Функция идемпотентна — лишние вызовы безопасны (дубликатов не будет).
+// Safety net: if for some reason school data isn't available yet when
+// init() runs, registration repeats until INNATE_ABILITIES appears.
+// The function is idempotent — extra calls are safe (no duplicates).
 function ensureInnateCheatCommandsRegistered() {
   if (registerInnateCheatCommands()) return;
   let tries = 0;
@@ -1844,7 +1888,7 @@ function ensureInnateCheatCommandsRegistered() {
   }, 100);
 }
 
-// Дополнительная страховка: перерегистрируем после полной загрузки страницы.
+// Extra safety: re-register after the page fully loads.
 if (typeof document !== 'undefined') {
   window.addEventListener('load', () => registerInnateCheatCommands());
 }

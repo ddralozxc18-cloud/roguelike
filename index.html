@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Пустоши — низкополигональные земли</title>
+  <title>Rygalik — Low-Poly Wastelands</title>
   <link rel="stylesheet" href="style.css">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -16,35 +16,35 @@
   
   <div id="pause-screen" class="screen hidden">
     <div class="menu-card">
-      <h1 class="menu-title small">Пауза</h1>
-      <button id="resume-btn" class="btn-primary">Продолжить</button>
+      <h1 class="menu-title small">Paused</h1>
+      <button id="resume-btn" class="btn-primary">Resume</button>
       <div class="sens-label">
-        <label for="sensitivity-slider-pause">Чувствительность мыши</label>
+        <label for="sensitivity-slider-pause">Mouse Sensitivity</label>
         <input type="range" id="sensitivity-slider-pause" min="0.1" max="3" step="0.1" value="1">
       </div>
       <label class="fps-toggle-label">
         <input type="checkbox" id="fps-toggle">
-        Счетчик FPS
+        FPS Counter
       </label>
-      <button id="restart-btn" class="btn-secondary">Начать заново</button>
+      <button id="restart-btn" class="btn-secondary">Restart</button>
     </div>
   </div>
   
   <div id="death-screen" class="screen hidden">
     <div class="menu-card">
-      <h1 class="menu-title">Вы пали...</h1>
-      <p class="menu-subtitle">Земли забрали своё — но путь не окончен.</p>
-      <button id="respawn-btn" class="btn-primary">Возродиться</button>
+      <h1 class="menu-title">You have fallen...</h1>
+      <p class="menu-subtitle">The lands have claimed their due — but your journey is not over.</p>
+      <button id="respawn-btn" class="btn-primary">Respawn</button>
     </div>
   </div>
   
   <div id="inventory-screen" class="screen hidden">
     <div class="inventory-card">
-      <h2 class="inventory-title">Инвентарь</h2>
+      <h2 class="inventory-title">Inventory</h2>
       <div id="equipment-container"></div>
       <div id="inventory-grid"></div>
-      <p class="inventory-hint-text">Нажмите на предмет, чтобы использовать его</p>
-      <button id="close-inventory-btn" class="btn-secondary">Закрыть (I)</button>
+      <p class="inventory-hint-text">Click an item to use it</p>
+      <button id="close-inventory-btn" class="btn-secondary">Close (I)</button>
     </div>
   </div>
   
@@ -56,7 +56,7 @@
     
     <div id="stats-panel">
       <div id="level-row">
-        <span class="level-label">Уровень <span id="level-value">1</span></span>
+        <span class="level-label">Level <span id="level-value">1</span></span>
         <div class="xp-track">
           <div class="xp-fill" id="xp-fill"></div>
         </div>
@@ -68,7 +68,7 @@
             <div class="bar-fill hp-fill" id="hp-fill"></div>
           </div>
           <span class="bar-value"><span id="hp-value">100/100</span></span>
-          <span class="regen-value" id="hp-regen">+0/сек</span>
+          <span class="regen-value" id="hp-regen">+0/s</span>
         </div>
         <div class="bar-row">
           <span class="bar-icon mana-icon">✦</span>
@@ -76,7 +76,7 @@
             <div class="bar-fill mana-fill" id="mana-fill"></div>
           </div>
           <span class="bar-value"><span id="mana-value">100/100</span></span>
-          <span class="regen-value" id="mana-regen">+0/сек</span>
+          <span class="regen-value" id="mana-regen">+0/s</span>
         </div>
       </div>
     </div>
@@ -98,7 +98,7 @@
     </div>
     
     <div id="pickup-prompt" class="hidden"></div>
-    <div id="inventory-hint">I — инвентарь</div>
+    <div id="inventory-hint">I — Inventory</div>
   </div>
   
   <div id="damage-vignette"></div>
@@ -107,17 +107,18 @@
   <div id="cheat-console" class="hidden">
     <div id="console-input-wrapper">
       <span id="console-prompt">&gt;</span>
-      <input type="text" id="console-input" placeholder="Введите команду...">
+      <input type="text" id="console-input" placeholder="Enter command...">
     </div>
     <div id="console-output"></div>
   </div>
   
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
-  <!-- Данные (загружаются ДО game.js, чтобы команды врождённых школ
-       innate_fire / innate_space / innate_luck регистрировались сразу) -->
+  <!-- Data (loaded BEFORE game.js so innate school commands
+       innate_fire / innate_space / innate_luck register right away) -->
 <script src="data/rarities.js"></script>
 <script src="data/schools.js"></script>
 <script src="data/stats.js"></script>
+<script src="data/i18n_en.js"></script>
 <script src="data/status_effects.js"></script>
 <script src="data/affixes.js"></script>
 <script src="data/items/index.js"></script>
@@ -125,7 +126,7 @@
 <script src="data/spells/index.js"></script>
 <script src="data/chests.js"></script>
 
-<!-- Системы -->
+<!-- Systems -->
 <script src="systems/rng.js"></script>
 <script src="systems/stats.js"></script>
 <script src="systems/status_effects.js"></script>
@@ -139,7 +140,7 @@
 <script src="systems/leveling.js"></script>
 <script src="systems/innate.js"></script>
 
-<!-- Реестр чит-команд и игра (после данных, чтобы innate_* регистрировались сразу) -->
+<!-- Cheat command registry and game (after data, so innate_* registers immediately) -->
 <script src="systems/cheats.js"></script>
 <script src="game.js"></script>
 

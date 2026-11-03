@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Rygalik — Главное меню</title>
+<title>Rygalik — Main Menu</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -112,7 +112,7 @@ html, body{
 <div class="screen">
   <div class="menu-card-main">
     <h1 class="menu-title-gold">Rygalik</h1>
-    <button id="start-btn" class="btn-start-game">начать игру</button>
+    <button id="start-btn" class="btn-start-game">Start Game</button>
     <div class="pre-alpha">Pre-Alpha</div>
   </div>
 </div>
@@ -122,7 +122,7 @@ html, body{
   const startBtn = document.getElementById('start-btn');
   
   startBtn.addEventListener('click', function() {
-    // Отправляем сообщение родительскому окну
+    // Send a message to the parent window
     window.parent.postMessage({ type: 'START_GAME' }, '*');
   });
 })();
