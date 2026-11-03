@@ -171,6 +171,9 @@ const consoleOutputEl = document.getElementById('console-output');
 let scene, camera, renderer, clock;
 const collectibles = [];
 const obstacles = [];
+// Spawnable jump platforms (cheat commands spawn_box / spawn_bbox):
+// boxes the player can land on and walk around like solid props.
+const boxPlatforms = [];
 const flares = [];
 const parkourShots = []; // double-jump projectiles (space)
 const targets = []; // Array of bob/superbob targets
@@ -393,6 +396,119 @@ function resolveCollisions(pos) {
       pos.z += (dz / dist) * push;
     }
   }
+}
+
+// ---------------------------------------------------------
+// Spawnable jump platforms (cheat commands spawn_box / spawn_bbox)
+// ---------------------------------------------------------
+// Single-jump height margin: the box top sits slightly BELOW the peak of a
+// regular jump (h = jumpSpeed^2 / (2*|gravity|) ≈ 2.18 m), so one normal jump
+// is "exactly enough" to land on it.
+const PLATFORM_HEIGHT_MARGIN = 0.25;
+// How far below the eye level the feet are (used for landing checks)
+const PLATFORM_FOOT_EYE_DELTA = CONFIG.eyeHeight;
+
+function platformTopY(box) {
+  return box.mesh.position.y + box.height / 2;
+}
+
+// Is the player's feet point horizontally inside the box footprint?
+function isOverPlatform(px, pz) {
+  for (const b of boxPlatforms) {
+    const hx = b.width / 2 + CONFIG.playerRadius * 0.5; // slight edge forgiveness
+    const hz = b.depth / 2 + CONFIG.playerRadius * 0.5;
+    if (Math.abs(px - b.x) <= hx && Math.abs(pz - b.z) <= hz) return b;
+  }
+  return null;
+}
+
+// Horizontal blocking: prevent walking through box side walls at any
+// height below the platform top (AABB vs circle in XZ).
+function resolveBoxCollisions(pos, feetY) {
+  for (const b of boxPlatforms) {
+    if (feetY >= platformTopY(b) - 0.05) continue; // standing above/on it
+    const r = CONFIG.playerRadius;
+    const hx = b.width / 2, hz = b.depth / 2;
+    const dx = pos.x - b.x, dz = pos.z - b.z;
+    if (Math.abs(dx) <= hx + r && Math.abs(dz) <= hz + r) {
+      const penX = hx + r - Math.abs(dx);
+      const penZ = hz + r - Math.abs(dz);
+      if (penX < penZ) pos.x += (dx >= 0 ? 1 : -1) * penX;
+      else pos.z += (dz >= 0 ? 1 : -1) * penZ;
+    }
+  }
+}
+
+// Vertical landing: returns the surface Y the feet should rest on
+// (ground = 0 or the top of a platform we are over), or null if free-falling.
+function getPlatformSupport(feetY) {
+  let best = null;
+  for (const b of boxPlatforms) {
+    const top = platformTopY(b);
+    if (top <= feetY + 0.001) continue; // already below the surface
+    if (best === null || top < best) best = top;
+  }
+  return best;
+}
+
+function createBoxPlatform(opts) {
+  if (!scene || !camera) return null;
+  const width = opts.width, height = opts.height, depth = opts.depth;
+  const geo = new THREE.BoxGeometry(width, height, depth);
+  const mat = new THREE.MeshStandardMaterial({
+    color: opts.color || 0x9c7b4f,
+    flatShading: true,
+    roughness: 0.9,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  // Place in front of the player, resting on the ground
+  const dir = new THREE.Vector3();
+  camera.getWorldDirection(dir);
+  dir.y = 0;
+  if (dir.lengthSq() > 0.0001) dir.normalize(); else dir.set(0, 0, -1);
+  const cx = camera.position.x + dir.x * 3;
+  const cz = camera.position.z + dir.z * 3;
+  mesh.position.set(cx, height / 2, cz);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  scene.add(mesh);
+  // Simple wooden crate look: dark frame edges
+  const edges = new THREE.LineSegments(
+    new THREE.EdgesGeometry(geo),
+    new THREE.LineBasicMaterial({ color: 0x3a2c1a })
+  );
+  mesh.add(edges);
+  const box = {
+    mesh, width, height, depth,
+    x: cx, z: cz,
+    kind: opts.kind || 'box',
+  };
+  boxPlatforms.push(box);
+  return box;
+}
+
+// spawn_box: 1×1×1 meter cube — a single jump lands exactly on it
+function spawnJumpBox() {
+  const singleJumpPeak = (CONFIG.jumpSpeed * CONFIG.jumpSpeed) / (2 * Math.abs(CONFIG.gravity));
+  const height = Math.max(0.5, singleJumpPeak - PLATFORM_HEIGHT_MARGIN);
+  return createBoxPlatform({ width: 1, height, depth: 1, kind: 'box' });
+}
+
+// spawn_bbox: long low wall-like box — reachable only with the double jump
+// (height above a single jump peak, below the two-jump apex)
+function spawnBigJumpBox() {
+  const singleJumpPeak = (CONFIG.jumpSpeed * CONFIG.jumpSpeed) / (2 * Math.abs(CONFIG.gravity));
+  const height = clamp(singleJumpPeak * 1.5, singleJumpPeak + 0.2, singleJumpPeak * 2 - 0.4);
+  return createBoxPlatform({
+    width: 6, height, depth: 1, kind: 'bbox',
+    color: 0x6f7f8f,
+  });
+}
+
+function removeBoxPlatform(box) {
+  const idx = boxPlatforms.indexOf(box);
+  if (idx !== -1) boxPlatforms.splice(idx, 1);
+  scene.remove(box.mesh);
 }
 
 // ---------------------------------------------------------
@@ -1065,6 +1181,9 @@ function updatePlayer(dt, elapsed) {
     camera.position.z + state.velocity.z * dt
   );
   resolveCollisions(next);
+  // Box platforms: block walking through their side walls (unless we are
+  // already above the platform surface)
+  resolveBoxCollisions(next, camera.position.y - state.bobOffset - CONFIG.eyeHeight);
   next.x = clamp(next.x, -CONFIG.worldBound, CONFIG.worldBound);
   next.z = clamp(next.z, -CONFIG.worldBound, CONFIG.worldBound);
   // Если столкновение «съело» движение — гасим скорость по этой оси,
@@ -1089,7 +1208,46 @@ function updatePlayer(dt, elapsed) {
   // Вертикальная физика (гравитация и приземление)
   state.velocityY += CONFIG.gravity * dt;
   let newY = camera.position.y - state.bobOffset + state.velocityY * dt;
-  if (newY <= CONFIG.eyeHeight) {
+  // Landing surface for the feet: ground (y=0) or the top of a box platform
+  // we are horizontally over. Standing on a platform keeps bunnyhop/jump
+  // mechanics identical to standing on the ground, just at eyeHeight + topY.
+  const supportTop = isOverPlatform(camera.position.x, camera.position.z);
+  const feetNow = camera.position.y - state.bobOffset - CONFIG.eyeHeight;
+  let surfaceY = 0;
+  if (supportTop && state.velocityY >= 0) {
+    // Rising/standing under a platform ceiling — block upward motion
+    if (feetNow < platformTopY(supportTop) - 0.05 && newY - CONFIG.eyeHeight > platformTopY(supportTop)) {
+      newY = platformTopY(supportTop) + CONFIG.eyeHeight;
+      state.velocityY = Math.min(state.velocityY, 0);
+    }
+  }
+  // Which platform tops can the feet rest on right now? A platform supports
+  // the player when they are over it and their feet are at/above its surface
+  // (with a small tolerance). The highest such surface wins; otherwise the
+  // player falls to the ground.
+  function getSupportSurfaceY(feetY) {
+    let best = 0;
+    for (const b of boxPlatforms) {
+      const hx = b.width / 2 + CONFIG.playerRadius * 0.5;
+      const hz = b.depth / 2 + CONFIG.playerRadius * 0.5;
+      if (Math.abs(camera.position.x - b.x) <= hx && Math.abs(camera.position.z - b.z) <= hz) {
+        const top = platformTopY(b);
+        if (top <= feetY + 0.08 && top > best) best = top;
+      }
+    }
+    return best;
+  }
+  surfaceY = getSupportSurfaceY(feetNow);
+  const surfaceEye = CONFIG.eyeHeight + surfaceY;
+  // While standing on a platform, walk off its edge → start falling
+  if (state.onGround && surfaceY > 0.001) {
+    const b = isOverPlatform(camera.position.x, camera.position.z);
+    if (!b || Math.abs(platformTopY(b) - surfaceY) > 0.01) {
+      state.onGround = false;
+      newY = camera.position.y - state.bobOffset;
+    }
+  }
+  if (newY <= surfaceEye) {
     if (!state.onGround) {
       const impact = Math.abs(state.velocityY);
       // Урон от падения не начисляется, если игрок приземляется
@@ -1104,9 +1262,9 @@ function updatePlayer(dt, elapsed) {
       if (jumpHeld && impact <= CONFIG.fallDamageThreshold) {
         doJump();
         state.onGround = true;
-        newY = CONFIG.eyeHeight;
+        newY = surfaceEye;
       } else {
-        newY = CONFIG.eyeHeight;
+        newY = surfaceEye;
         state.velocityY = 0;
         state.onGround = true;
       }
@@ -1114,7 +1272,7 @@ function updatePlayer(dt, elapsed) {
       state.airJumpsUsed = 0;
       state.doubleJumpActive = false;
     } else {
-      newY = CONFIG.eyeHeight;
+      newY = surfaceEye;
       state.velocityY = 0;
       state.onGround = true;
       state.airJumpsUsed = 0;
@@ -1327,6 +1485,8 @@ function fullReset() {
   parkourShots.length = 0;
   for (const p of scorchPulses) scene.remove(p.mesh);
   scorchPulses.length = 0;
+  // Remove spawned jump platforms (spawn_box / spawn_bbox)
+  while (boxPlatforms.length) removeBoxPlatform(boxPlatforms[0]);
   collectibles.forEach((c) => { c.collected = false; c.mesh.visible = true; });
   resetPlayerPosition();
   state.dead = false;
@@ -1875,6 +2035,39 @@ function registerBuiltinCheatCommands() {
       }
       targets.length = 0;
       logToConsole(`Targets removed: ${count}`, 'success');
+    },
+  });
+
+  registerCheatCommand({
+    name: 'spawn_box',
+    description: 'Spawn a 1×1 m wooden crate (single jump is exactly enough to land on it)',
+    category: 'Platforms',
+    run: () => {
+      const box = spawnJumpBox();
+      if (!box) { logToConsole('Cannot spawn a box: scene not ready', 'error'); return; }
+      logToConsole(`Crate spawned: ${box.width.toFixed(1)}×${box.height.toFixed(2)}×${box.depth.toFixed(1)} m (reachable with ONE jump)`, 'success');
+    },
+  });
+
+  registerCheatCommand({
+    name: 'spawn_bbox',
+    description: 'Spawn a long 6×1 m wall-like box (requires the Parkour DOUBLE jump to get on top)',
+    category: 'Platforms',
+    run: () => {
+      const box = spawnBigJumpBox();
+      if (!box) { logToConsole('Cannot spawn a box: scene not ready', 'error'); return; }
+      logToConsole(`Big box spawned: ${box.width.toFixed(1)}×${box.height.toFixed(2)}×${box.depth.toFixed(1)} m (needs the DOUBLE jump)`, 'success');
+    },
+  });
+
+  registerCheatCommand({
+    name: 'delall_box',
+    description: 'Remove all spawned boxes/platforms',
+    category: 'Platforms',
+    run: () => {
+      const count = boxPlatforms.length;
+      while (boxPlatforms.length) removeBoxPlatform(boxPlatforms[0]);
+      logToConsole(`Boxes removed: ${count}`, 'success');
     },
   });
 
