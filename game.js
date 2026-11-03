@@ -2326,6 +2326,10 @@ function applyDamageToTarget(target, amount) {
 function init() {
   registerBuiltinCheatCommands();
   ensureInnateCheatCommandsRegistered();
+  // Chest spawn commands (chest_trash/.../chest_unemployed) are defined in
+  // systems/chests.js but must be registered only now — at that file's load
+  // time the cheat registry (systems/cheats.js) did not exist yet.
+  if (typeof registerChestCheatCommands === 'function') registerChestCheatCommands();
   initScene();
   createWorld();
   createCollectibles();

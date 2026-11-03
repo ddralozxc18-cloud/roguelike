@@ -171,26 +171,31 @@ window.activeChests = activeChests;
 // Cheat commands: chest_trash / chest_common / chest_rare /
 // chest_mythical / chest_unemployed — spawn a colored chest
 // 3 meters in front of the player. No loot logic yet.
+// Registration is DEFERRED until init(): at script-load time
+// registerCheatCommand does not exist yet (systems/cheats.js and
+// game.js load AFTER this file), so an IIFE here silently skipped
+// registration and the console reported "Unknown command".
 // ─────────────────────────────────────────────────────
-(function registerChestCheatCommands() {
-  if (typeof registerCheatCommand !== 'function') return;
+const CHEST_CHEAT_DEFS = [
+  ['chest_trash', 'gray'],
+  ['chest_common', 'white'],
+  ['chest_rare', 'blue'],
+  ['chest_mythical', 'purple'],
+  ['chest_unemployed', 'black'],
+];
 
-  const defs = [
-    ['chest_trash', 'gray'],
-    ['chest_common', 'white'],
-    ['chest_rare', 'blue'],
-    ['chest_mythical', 'purple'],
-    ['chest_unemployed', 'black'],
-  ];
+function registerChestCheatCommands() {
+  if (typeof registerCheatCommand !== 'function') return false;
 
-  for (const [id, colorName] of defs) {
+  for (const [id, colorName] of CHEST_CHEAT_DEFS) {
     registerCheatCommand({
       name: id,
+      usage: id,
       description: `Spawn a ${colorName} ${CHESTS[id].name} 3 m ahead of the player`,
       category: 'Chests',
       run: () => {
-        const sc = window.scene || (typeof scene !== 'undefined' ? scene : null);
-        const cam = window.camera || (typeof camera !== 'undefined' ? camera : null);
+        const sc = (typeof scene !== 'undefined' && scene) ? scene : window.scene;
+        const cam = (typeof camera !== 'undefined' && camera) ? camera : window.camera;
         const log = typeof logToConsole === 'function' ? logToConsole
                   : (typeof window.logToConsole === 'function' ? window.logToConsole : null);
         if (!sc || !cam) {
@@ -215,4 +220,7 @@ window.activeChests = activeChests;
       },
     });
   }
-})();
+  return true;
+}
+
+window.registerChestCheatCommands = registerChestCheatCommands;
