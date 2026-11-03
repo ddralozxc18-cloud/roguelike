@@ -208,6 +208,10 @@ function initScene() {
   camera.position.set(0, CONFIG.eyeHeight, 6);
   scene.add(camera); // Add the camera to the scene right at initialization
 
+  // Expose for UI/systems modules (e.g. chest cheat commands in systems/chests.js)
+  window.scene = scene;
+  window.camera = camera;
+
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -1487,6 +1491,11 @@ function fullReset() {
   scorchPulses.length = 0;
   // Remove spawned jump platforms (spawn_box / spawn_bbox)
   while (boxPlatforms.length) removeBoxPlatform(boxPlatforms[0]);
+  // Remove spawned chests (chest_* cheat commands)
+  if (typeof activeChests !== 'undefined') {
+    for (const c of activeChests) scene.remove(c.mesh);
+    activeChests.length = 0;
+  }
   collectibles.forEach((c) => { c.collected = false; c.mesh.visible = true; });
   resetPlayerPosition();
   state.dead = false;
@@ -1797,6 +1806,8 @@ function animate() {
   const dt = Math.min(clock.getDelta(), 0.1);
   const elapsed = clock.getElapsedTime();
   updateCollectiblesAnim(dt, elapsed);
+  // Chest idle animation (hover + spin) — runs even while paused
+  if (typeof updateChestsAnim === 'function') updateChestsAnim(dt, elapsed);
   if (!state.started) {
     idleCameraUpdate(elapsed);
   } else if (isActive()) {

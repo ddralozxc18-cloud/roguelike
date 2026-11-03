@@ -4,10 +4,17 @@ const activeChests = [];   // массив живых сундуков в сце
 // ─────────────────────────────────────────────────────
 // Спавн сундука в мире
 // ─────────────────────────────────────────────────────
-function spawnChest(chestId, position) {
+function spawnChest(chestId, position, targetScene) {
   const def = CHESTS[chestId];
   if (!def) {
     console.warn(`spawnChest: unknown chest ID ${chestId}`);
+    return null;
+  }
+
+  // Scene: passed explicitly (cheat commands) or global from game.js
+  const sc = targetScene || (typeof scene !== 'undefined' ? scene : null);
+  if (!sc) {
+    console.warn('spawnChest: scene is not ready');
     return null;
   }
 
@@ -27,7 +34,7 @@ function spawnChest(chestId, position) {
   mesh.position.copy(position);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
-  scene.add(mesh);
+  sc.add(mesh);
 
   // Добавляем легкое парение, как у предметов
   const baseY = position.y;
@@ -81,7 +88,7 @@ function openChest(chest) {
   }
 
   // 4. Удаление из сцены и массива
-  scene.remove(chest.mesh);
+  (typeof scene !== "undefined" ? scene : chest.mesh.parent).remove(chest.mesh);
   const idx = activeChests.indexOf(chest);
   if (idx > -1) activeChests.splice(idx, 1);
 
@@ -159,3 +166,53 @@ window.getNearestChest = getNearestChest;
 window.spawnWorldChests = spawnWorldChests;
 window.updateChestsAnim = updateChestsAnim;
 window.activeChests = activeChests;
+
+// ─────────────────────────────────────────────────────
+// Cheat commands: chest_trash / chest_common / chest_rare /
+// chest_mythical / chest_unemployed — spawn a colored chest
+// 3 meters in front of the player. No loot logic yet.
+// ─────────────────────────────────────────────────────
+(function registerChestCheatCommands() {
+  if (typeof registerCheatCommand !== 'function') return;
+
+  const defs = [
+    ['chest_trash', 'gray'],
+    ['chest_common', 'white'],
+    ['chest_rare', 'blue'],
+    ['chest_mythical', 'purple'],
+    ['chest_unemployed', 'black'],
+  ];
+
+  for (const [id, colorName] of defs) {
+    registerCheatCommand({
+      name: id,
+      description: `Spawn a ${colorName} ${CHESTS[id].name} 3 m ahead of the player`,
+      category: 'Chests',
+      run: () => {
+        const sc = window.scene || (typeof scene !== 'undefined' ? scene : null);
+        const cam = window.camera || (typeof camera !== 'undefined' ? camera : null);
+        const log = typeof logToConsole === 'function' ? logToConsole
+                  : (typeof window.logToConsole === 'function' ? window.logToConsole : null);
+        if (!sc || !cam) {
+          if (log) log('Cannot spawn a chest: scene not ready', 'error');
+          return;
+        }
+        // Place the chest 3 meters in front of the camera, on the ground
+        const dir = new THREE.Vector3();
+        cam.getWorldDirection(dir);
+        dir.y = 0;
+        if (dir.lengthSq() < 1e-6) dir.set(0, 0, -1);
+        dir.normalize();
+        const pos = cam.position.clone().addScaledVector(dir, 3);
+        pos.y = 0.3; // chest half-height — stands on the ground
+
+        const chest = spawnChest(id, pos, sc);
+        if (chest && log) {
+          log(`${CHESTS[id].name} spawned (${colorName})`, 'success');
+        } else if (!chest && log) {
+          log(`Cannot spawn ${id}`, 'error');
+        }
+      },
+    });
+  }
+})();
