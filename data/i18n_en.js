@@ -111,7 +111,7 @@
         }
         return true;
       }
-    } catch (e) { /* данные ещё не загружены */ }
+    } catch (e) { /* data not loaded yet */ }
     return false;
   }
   if (!localizeItemDefs()) {

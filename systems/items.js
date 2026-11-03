@@ -39,7 +39,7 @@ function findItemByUid(uid) { return inventory[uid]?.item || null; }
 // Экипировка
 function equipItem(item, slot) {
   if (!item.slot || item.slot !== slot) {
-    console.warn('Нельзя экипировать', item.id, 'в слот', slot);
+    console.warn('Cannot equip', item.id, 'into slot', slot);
     return false;
   }
   const old = equipmentState[slot];

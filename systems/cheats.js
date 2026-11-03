@@ -18,7 +18,7 @@ function registerCheatCommand(def) {
     name: def.name,
     description: def.description,
     usage: def.usage || def.name,
-    category: def.category || 'Прочее',
+    category: def.category || 'Misc',
     kind: def.kind || 'action',
     run: def.run || null, // (args, ctx) => void; ctx = { game } — доступ к внутренностям игры
   });

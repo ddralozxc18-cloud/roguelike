@@ -62,7 +62,7 @@ function instantiate(baseId, type = 'item', options = {}) {
   if (type === 'spell')  base = SPELLS_DB[baseId];
 
   if (!base) {
-    console.warn(`instantiate: не найден ${type} с id ${baseId}`);
+    console.warn(`instantiate: no ${type} found with id ${baseId}`);
     return null;
   }
 

@@ -7,7 +7,7 @@ const activeChests = [];   // массив живых сундуков в сце
 function spawnChest(chestId, position) {
   const def = CHESTS[chestId];
   if (!def) {
-    console.warn(`spawnChest: неизвестный ID сундука ${chestId}`);
+    console.warn(`spawnChest: unknown chest ID ${chestId}`);
     return null;
   }
 

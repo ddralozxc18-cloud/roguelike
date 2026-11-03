@@ -67,7 +67,7 @@
     panelEl = document.createElement('div');
     panelEl.id = 'stats-inventory-panel';
     panelEl.className = 'stats-inventory-panel hidden';
-    panelEl.innerHTML = '<h3 class="stats-panel-title">Характеристики</h3><div class="stats-list" id="stats-list"></div>';
+    panelEl.innerHTML = '<h3 class="stats-panel-title">Stats</h3><div class="stats-list" id="stats-list"></div>';
     document.body.appendChild(panelEl);
     return panelEl;
   }

@@ -943,11 +943,16 @@ function isActive() {
 }
 
 // Is there an open modal window that requires a visible cursor?
+// NOTE: 'pause-screen' is intentionally NOT in the list. The pause menu is
+// opened as a RESULT of losing pointer lock; if it counted as a blocking
+// modal, requestGamePointerLock() (guarded by isActive()) would refuse to
+// re-lock while paused, and the resume retry loop could never succeed —
+// which caused the "can't close pause / infinite reopen" cycle. Pause state
+// itself is tracked via state.paused everywhere else.
 function hasModalOverlayOpen() {
   const ids = [
     'school-select-screen',
     'inventory-screen',
-    'pause-screen',
     'death-screen',
     'spell-choice-screen',
   ];
@@ -1229,37 +1234,40 @@ function requestGamePointerLock() {
 // Access from UI scripts (school_select etc.)
 window.requestGamePointerLock = requestGamePointerLock;
 
-// Flag: the player just left the pause menu, but the browser may have
-// rejected the new pointer-lock request (cooling-off after Esc unlock).
-let pendingResumeLock = false;
+// ---------------------------------------------------------------
+// Pointer-lock state machine for the pause menu.
+//
+// Root cause of the old bugs: pressing Esc fires BOTH the keydown handler
+// AND the browser's built-in pointer-unlock (pointerlockchange event).
+// Depending on timing/ordering this used to open the pause screen twice
+// (stacked overlays) or re-open it forever when trying to close it (the
+// resume lock attempt failed during Chrome's ~1s "cooling-off" period
+// after an Esc-unlock, and each failure path re-triggered the pause logic).
+//
+// The single rule now: pointerlockchange ONLY pauses the game when the
+// pointer WAS locked and the game was fully active. Resuming goes through
+// resumeFromPause(), which hides the screen synchronously and then retries
+// the lock in a bounded loop that NEVER touches the pause screen state.
+// ---------------------------------------------------------------
+let wasLockedBeforeUnlock = false; // true right after a real lock existed
+let resumeLockTimer = null;        // bounded retry timer after resuming
+
+function stopResumeLockRetries() {
+  if (resumeLockTimer) {
+    clearInterval(resumeLockTimer);
+    resumeLockTimer = null;
+  }
+}
 
 // Safety loop: if the browser rejected the lock request (no user activation
-// / cooling-off period), automatically retry every 300 ms while the game is
-// active and the pointer is not locked.
+// / cooling-off period), automatically retry every 500 ms while the game is
+// active and the pointer is not locked. Bounded interval — one single place
+// that requests locks outside of direct user gestures.
 setInterval(() => {
   if (document.pointerLockElement === container) return; // already locked
   if (!isActive()) return; // pause/inventory/school select — cursor must stay visible
   requestGamePointerLock();
-}, 300);
-
-// Second loop — recovery after leaving the pause menu via Escape: browsers
-// often reject a new lock request right after an unlock (cooling-off), so we
-// keep retrying bypassing isActive() until the lock succeeds. If another
-// modal window opens in the meantime — cancel the intent.
-setInterval(() => {
-  if (!pendingResumeLock) return;
-  if (document.pointerLockElement === container) {
-    pendingResumeLock = false;
-    state.paused = false;
-    pauseScreen.classList.add('hidden');
-    return;
-  }
-  if (!state.started || state.dead || state.inventoryOpen || hasModalOverlayOpen()) {
-    pendingResumeLock = false; // user opened another window — cancel
-    return;
-  }
-  requestGamePointerLock();
-}, 300);
+}, 500);
 
 // Fallback: clicking the game viewport (a user gesture — browsers always
 // allow locking in response to one) requests the lock immediately.
@@ -1409,31 +1417,58 @@ window.checkTargetHit = checkTargetHit;
 // Resume the game from the pause menu: hide the screen, clear the flag and
 // re-acquire pointer lock. Shared by the Resume button and the Escape key.
 function resumeFromPause() {
+  // Idempotent guard: if the pause menu is not actually open (already
+  // resumed via another path), do nothing — prevents double-close races
+  // between the Esc keydown handler and other listeners.
+  if (!state.paused && pauseScreen.classList.contains('hidden')) return;
+  stopResumeLockRetries();
   state.paused = false;
+  state.keys = {};
   pauseScreen.classList.add('hidden');
-  // Remember that we just resumed: if the browser refuses the new lock
-  // request (Escape-to-unlock "cooling-off" period), the safety loop below
-  // keeps retrying — otherwise the game would stay stuck in a half-paused
-  // state with no visible pause menu and no camera control.
-  pendingResumeLock = true;
+  wasLockedBeforeUnlock = false;
+  // Bounded retry loop: browsers reject a new lock request for ~1 second
+  // after an Escape unlock ("cooling-off"). We ONLY retry the lock here —
+  // this loop never shows the pause screen, so it cannot cause a reopen
+  // cycle. The generic safety interval picks up if these retries fail too.
+  let attempts = 0;
+  resumeLockTimer = setInterval(() => {
+    if (document.pointerLockElement === container || !state.started ||
+        state.paused || state.dead || state.inventoryOpen || hasModalOverlayOpen()) {
+      stopResumeLockRetries();
+      return;
+    }
+    requestGamePointerLock();
+    if (++attempts > 8) stopResumeLockRetries(); // give up after ~2 s
+  }, 250);
   requestGamePointerLock();
 }
 
 function onPointerLockChange() {
   const locked = document.pointerLockElement === container;
   if (locked) {
-    pendingResumeLock = false;
-    pauseScreen.classList.add('hidden');
-    state.paused = false;
+    // A real lock succeeded: cancel any resume-retry, make sure no stale
+    // pause overlay can remain visible above the running game.
+    stopResumeLockRetries();
+    wasLockedBeforeUnlock = true;
+    if (state.paused) {
+      state.paused = false;
+      pauseScreen.classList.add('hidden');
+    }
     // Don't call beginGame() here — the game was already initialized via START_GAME
-  } else if (state.started && !state.paused && !state.dead && !state.inventoryOpen && !hasModalOverlayOpen()) {
-    // Don't show the pause menu while a modal window with a visible cursor
-    // is open (e.g. second-school selection at level 10), and never re-open
-    // it when we are already paused — otherwise pressing Escape inside the
-    // pause menu would stack a second pause screen over the first one.
-    state.paused = true;
-    state.keys = {};
-    pauseScreen.classList.remove('hidden');
+  } else if (wasLockedBeforeUnlock) {
+    // The pointer WAS locked and just got released. This only happens from:
+    //  - the user pressing Esc while playing (browser default unlock), or
+    //  - our own exitPointerLock() calls (inventory/death/etc.).
+    // Show the pause menu ONLY when the game was fully active beforehand;
+    // every other modal path sets its own state first, and the checks below
+    // prevent stacking a second pause screen over an existing one.
+    wasLockedBeforeUnlock = false;
+    stopResumeLockRetries();
+    if (state.started && !state.paused && !state.dead && !state.inventoryOpen && !hasModalOverlayOpen()) {
+      state.paused = true;
+      state.keys = {};
+      pauseScreen.classList.remove('hidden');
+    }
   }
   // Обновляем меню паузы, чтобы синхронизировать значение чувствительности
   if (sensSliderPause) {
@@ -1806,13 +1841,13 @@ function registerBuiltinCheatCommands() {
     category: 'Targets',
     run: () => {
       spawnTarget('bob');
-      logToConsole('Создан Bob (HP: 100, Regen: 2, Mana: 100, ManaRegen: 2)', 'success');
+      logToConsole('Bob created (HP: 100, Regen: 2, Mana: 100, ManaRegen: 2)', 'success');
     },
   });
 
   registerCheatCommand({
     name: 'spawn_superbob',
-    description: 'Создать бессмертную мишень SuperBob',
+    description: 'Spawn an immortal SuperBob target',
     category: 'Targets',
     run: () => {
       spawnTarget('superbob');

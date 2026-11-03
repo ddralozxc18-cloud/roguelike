@@ -16,9 +16,9 @@
     overlayEl.className = 'screen hidden school-select-screen';
     overlayEl.innerHTML = `
       <div class="school-select-card">
-        <h2 class="school-select-title" id="school-select-title">Выберите врождённую магию</h2>
+        <h2 class="school-select-title" id="school-select-title">Choose your Innate Magic</h2>
         <p class="school-select-subtitle" id="school-select-subtitle">
-          Стихия определит вашу врождённую способность — она появится в инвентаре.
+          Your element defines your innate ability — it will appear in the inventory.
         </p>
         <div class="school-cards-row" id="school-cards-row"></div>
       </div>`;
@@ -69,11 +69,11 @@
     });
 
     if (isSecondSchoolMode) {
-      title.textContent = 'Выберите вторую школу';
-      subtitle.textContent = 'На 10 уровне открывается вторая врождённая магия.';
+      title.textContent = 'Choose Your Second School';
+      subtitle.textContent = 'Reaching level 10 unlocks a second innate magic.';
     } else {
-      title.textContent = 'Выберите врождённую магию';
-      subtitle.textContent = 'Стихия определит вашу врождённую способность — она появится в инвентаре.';
+      title.textContent = 'Choose Your Innate Magic';
+      subtitle.textContent = 'Your element defines your innate ability — it will appear in the inventory.';
     }
 
     for (const id of available) {

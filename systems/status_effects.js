@@ -8,7 +8,7 @@ function applyStatusEffect(effectId, sourceId = 'player', baseDuration) {
   // Сопротивление эффектам (только для дебаффов от врагов)
   if (!def.isBuff && sourceId !== 'player') {
     if (rng() > applyEffectResist(1.0)) {
-      showFloatingText?.('Сопротивление!', '#7dd3fc');
+      showFloatingText?.('Resisted!', '#7dd3fc');
       return;
     }
   }

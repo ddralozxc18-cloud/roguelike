@@ -4,27 +4,27 @@
 const SCHOOLS = {
   fire: {
     id: 'fire',
-    name: 'Огонь',
+    name: 'Fire',
     icon: '🔥',
     color: '#ff7a2a',
     image: 'img/schools/fire!webp',
-    description: 'Разрушительная стихия. Наносит урон по площади и сжигает врагов.',
+    description: 'A destructive element. Deals area damage and burns enemies.',
   },
   space: {
     id: 'space',
-    name: 'Пространство',
+    name: 'Space',
     icon: '🌀',
     color: '#8f6bff',
     image: null,
-    description: 'Искажение пространства. Мобильность, рывки и двойные прыжки.',
+    description: 'Spatial distortion. Mobility, dashes and double jumps.',
   },
   luck: {
     id: 'luck',
-    name: 'Удача',
+    name: 'Luck',
     icon: '🎲',
     color: '#e8c96b',
     image: null,
-    description: 'Казино и случайность. Ни один удар не бывает одинаковым.',
+    description: 'Casino and randomness. No two hits are ever the same.',
   },
 };
 
@@ -43,7 +43,7 @@ const INNATE_ABILITIES = {
     radius: 7,               // радиус ауры (юниты)
     damagePerTick: 3,        // базовый урон за тик
     tickInterval: 0.55,      // секунд между тиками
-    description: 'Постоянная аура пламени: выжигает всех врагов рядом.',
+    description: 'Constant flame aura: scorches every nearby enemy.',
   },
   space: {
     id: 'parkour',
@@ -52,7 +52,7 @@ const INNATE_ABILITIES = {
     icon: '🌀',
     color: '#8f6bff',
     kind: 'passive_mobility',
-    description: 'Двойной прыжок. На втором прыжке вниз вылетает снаряд с уроном = урон руки ×2.',
+    description: 'Double jump. The second jump fires a downward projectile dealing hand damage ×2.',
   },
   luck: {
     id: 'ambassador_of_luck',
@@ -62,7 +62,7 @@ const INNATE_ABILITIES = {
     color: '#e8c96b',
     kind: 'passive_modifier',
     variance: 0.10,          // ±10% к любому урону
-    description: 'Весь твой урон (и входящий) не фиксирован: каждый раз от −10% до +10% от базового значения.',
+    description: 'All damage you deal (and receive) is not fixed: each hit ranges from −10% to +10% of the base value.',
   },
 };
 
