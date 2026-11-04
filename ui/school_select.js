@@ -111,8 +111,15 @@
       return;
     }
     // Выбор врождённой магии на старте: применяем и запускаем игру
-    applyInnateSchool(schoolId);
-    if (typeof beginGame === 'function') beginGame();
+    try { applyInnateSchool(schoolId); } catch (err) { console.error('applyInnateSchool failed:', err); }
+    // beginGame() ОБЯЗАТЕЛЬНО должен запуститься — иначе игрок останется
+    // без управления («ничего не запускается»). Фолбэк через window.
+    const start = (typeof beginGame === 'function') ? beginGame : window.beginGame;
+    if (typeof start === 'function') {
+      start();
+    } else {
+      console.error('beginGame not found — cannot start the game');
+    }
   }
 
   function close() {
