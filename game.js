@@ -104,6 +104,9 @@ const state = {
   nearestPickup: null,
   inventory: {},
   gems: 0,
+  // Меню скрыто (Start Game нажат), но выбор школы ещё не сделан —
+  // используется в animate(), чтобы остановить idle-облёт камеры.
+  menuDismissed: false,
   // --- Врождённая магия (выбирается на старте) ---
   innateSchool: null,      // 'fire' | 'space' | 'luck'
   innateAbilityId: null,   // id врождённой способности из INNATE_ABILITIES
@@ -1484,6 +1487,7 @@ function fullReset() {
   state.innateAbilityId = null;
   state.airJumpsUsed = 0;
   state.doubleJumpActive = false;
+  state.menuDismissed = false;
   // Убрать активные снаряды/вспышки
   for (const p of parkourShots) scene.remove(p.mesh);
   parkourShots.length = 0;
@@ -1747,11 +1751,14 @@ function onResize() {
 }
 
 // Стартовый путь: сообщение START_GAME из iframe меню (или прямой клик по
-// кнопке — fallback). Раньше здесь всё падало молча, если openSchoolSelect()
-// бросал исключение (например, не догрузились данные школ): меню скрывалось,
-// а экран выбора/игра не появлялись — «ничего не запускалось».
-// Теперь: сначала надёжно скрываем меню, затем пробуем открыть выбор школы;
-// при любой ошибке — стартуем игру напрямую через beginGame().
+// кнопке — fallback).
+// КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: раньше игра стартовала СРАЗУ после нажатия Start Game,
+// но updatePlayer() пропускала кадры, пока открыт экран выбора школы. Камера
+// оставалась в режиме idle-облёта мира (idleCameraUpdate — непрерывное
+// вращение вокруг сцены), и это выглядело как «ничего не запускается» /
+// «всё крутится». Теперь порядок такой: меню скрывается → камера фиксируется
+// в игровой позиции → открывается выбор школы → только ПОСЛЕ выбора школы
+// начинается управление игроком (beginGame).
 function startFromMenu() {
   // Снимаем фокус с iframe, возвращаем фокус игровому контейнеру
   try {
@@ -1776,7 +1783,15 @@ function startFromMenu() {
       try { window.closeSchoolSelect && window.closeSchoolSelect(); } catch (e2) {}
     }
   }
-  if (!schoolSelectShown) {
+
+  if (schoolSelectShown) {
+    // Экран выбора школы открыт: останавливаем idle-камеру (иначе мир будет
+    // бесконечно вращаться за спиной игрока), но саму игру НЕ запускаем —
+    // beginGame() вызовет ui/school_select.js сразу после выбора школы.
+    state.menuDismissed = true;
+    resetPlayerPosition();
+  } else {
+    // Выбор школы недоступен (данные не загрузились) — стартуем напрямую.
     beginGame();
   }
 }
@@ -1823,6 +1838,9 @@ function bindEvents() {
     menuFrameContainer.classList.remove('hidden');
     hudEl.classList.add('hidden');
     state.started = false;
+    state.menuDismissed = false; // снова показываем idle-облёт за меню
+    // На всякий случай скрываем экран выбора школы, если он был открыт
+    try { window.closeSchoolSelect && window.closeSchoolSelect(); } catch (e) {}
   });
 
   respawnBtn.addEventListener('click', respawn);
@@ -1856,7 +1874,10 @@ function animate() {
   updateCollectiblesAnim(dt, elapsed);
   // Сундуки статичны: никаких hover/spin-анимаций (см. systems/chest_entities.js)
   if (typeof updateChestsAnim === 'function') updateChestsAnim(dt, elapsed);
-  if (!state.started) {
+  if (!state.started && !state.menuDismissed) {
+    // Idle-облёт мира показываем ТОЛЬКО пока открыто главное меню.
+    // После нажатия Start Game (menuDismissed) камера уже зафиксирована в
+    // игровой позиции — никаких вращений во время экрана выбора школы.
     idleCameraUpdate(elapsed);
   } else if (isActive()) {
     updatePlayer(dt, elapsed);
