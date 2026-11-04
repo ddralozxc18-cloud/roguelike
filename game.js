@@ -1746,25 +1746,73 @@ function onResize() {
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
+// Стартовый путь: сообщение START_GAME из iframe меню (или прямой клик по
+// кнопке — fallback). Раньше здесь всё падало молча, если openSchoolSelect()
+// бросал исключение (например, не догрузились данные школ): меню скрывалось,
+// а экран выбора/игра не появлялись — «ничего не запускалось».
+// Теперь: сначала надёжно скрываем меню, затем пробуем открыть выбор школы;
+// при любой ошибке — стартуем игру напрямую через beginGame().
+function startFromMenu() {
+  // Снимаем фокус с iframe, возвращаем фокус игровому контейнеру
+  try {
+    if (document.activeElement && document.activeElement.tagName === 'IFRAME') {
+      document.activeElement.blur();
+    }
+    window.focus();
+    container.focus();
+  } catch (err) { /* ignore focus issues */ }
+
+  menuFrameContainer.classList.add('hidden');
+
+  let schoolSelectShown = false;
+  if (typeof openSchoolSelect === 'function') {
+    try {
+      openSchoolSelect();
+      // Убедимся, что оверлей реально виден
+      const s = document.getElementById('school-select-screen');
+      schoolSelectShown = !!s && !s.classList.contains('hidden');
+    } catch (err) {
+      console.error('openSchoolSelect failed, starting game directly:', err);
+      try { window.closeSchoolSelect && window.closeSchoolSelect(); } catch (e2) {}
+    }
+  }
+  if (!schoolSelectShown) {
+    beginGame();
+  }
+}
+
+// Fallback-обработчик: если iframe и родительское окно на одном origin
+// (file:// или один хост), postMessage может не сработать в некоторых
+// браузерах. Вешаем клик на кнопку Start Game внутри iframe напрямую.
+function attachMenuButtonFallback() {
+  try {
+    const frame = document.getElementById('menu-frame');
+    if (!frame || !frame.contentDocument) return; // другой origin — тихо выходим
+    const btn = frame.contentDocument.getElementById('start-btn');
+    if (!btn || btn.dataset.fallbackAttached) return;
+    btn.dataset.fallbackAttached = '1';
+    btn.addEventListener('click', () => {
+      if (!menuFrameContainer.classList.contains('hidden')) startFromMenu();
+    });
+  } catch (err) {
+    // Доступ к contentDocument запрещён политикой same-origin — не страшно,
+    // основной путь (postMessage) работает.
+  }
+}
+
 function bindEvents() {
   // Слушаем сообщения от iframe меню
   window.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'START_GAME') {
-      // Снимаем фокус с iframe, затем открываем экран выбора врождённой магии
-      if (document.activeElement && document.activeElement.tagName === 'IFRAME') {
-        document.activeElement.blur();
-      }
-      window.focus();
-      container.focus();
-      menuFrameContainer.classList.add('hidden');
-      if (typeof openSchoolSelect === 'function') {
-        // Игра стартует после выбора школы (openSchoolSelect -> beginGame)
-        openSchoolSelect();
-      } else {
-        beginGame();
-      }
+      startFromMenu();
     }
   });
+
+  // Fallback: если iframe меню и родительское окно на одном origin,
+  // вешаем обработчик клика напрямую на кнопку внутри iframe.
+  attachMenuButtonFallback();
+  const mf = document.getElementById('menu-frame');
+  if (mf) mf.addEventListener('load', attachMenuButtonFallback);
 
   resumeBtn.addEventListener('click', () => {
     resumeFromPause();
@@ -2150,7 +2198,7 @@ function spawnTarget(type) {
   const isSuperBob = type === 'superbob';
   // Create target mesh
   const geometry = new THREE.BoxGeometry(1, 2, 0.5);
-  const material = new THREE.MeshStandardMaterial({ 
+  const material = new THREE.MeshStandardMaterial({
     color: isSuperBob ? 0xff00ff : 0xff4444,
     flatShading: true
   });
