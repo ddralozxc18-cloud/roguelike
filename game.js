@@ -1806,7 +1806,7 @@ function animate() {
   const dt = Math.min(clock.getDelta(), 0.1);
   const elapsed = clock.getElapsedTime();
   updateCollectiblesAnim(dt, elapsed);
-  // Chest idle animation (hover + spin) — runs even while paused
+  // Сундуки статичны: никаких hover/spin-анимаций (см. systems/chest_entities.js)
   if (typeof updateChestsAnim === 'function') updateChestsAnim(dt, elapsed);
   if (!state.started) {
     idleCameraUpdate(elapsed);
@@ -2333,6 +2333,8 @@ function init() {
   initScene();
   createWorld();
   createCollectibles();
+  // Спавним сундуки по миру (статичные, без анимаций)
+  if (typeof spawnWorldChests === 'function') spawnWorldChests();
   bindEvents();
   animate();
 }

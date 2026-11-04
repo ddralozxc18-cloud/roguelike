@@ -32,23 +32,23 @@ function spawnChest(chestId, position, targetScene) {
   });
   const mesh = new THREE.Mesh(geo, mat);
   mesh.position.copy(position);
+  mesh.rotation.set(0, 0, 0); // сундук всегда стоит ровно, без вращений
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   sc.add(mesh);
 
-  // Добавляем легкое парение, как у предметов
   const baseY = position.y;
-  
-  const chest = { 
-    def, 
-    mesh, 
-    opened: false, 
+
+  const chest = {
+    def,
+    mesh,
+    opened: false,
     baseY: baseY,
-    phase: Math.random() * Math.PI * 2, // для анимации парения
-    position: position.clone() 
+    position: position.clone()
   };
-  
+
   activeChests.push(chest);
+
   return chest;
 }
 
@@ -146,14 +146,16 @@ function spawnWorldChests() {
 }
 
 // ─────────────────────────────────────────────────────
-// Анимация сундуков (вызывается в animate() из game.js)
+// Сундуки полностью статичны — без вращения и парения.
+// updateChestsAnim вызывается из animate() в game.js каждый кадр и
+// принудительно возвращает каждый сундук в состояние покоя, независимо
+// от того, какой код пытается его анимировать.
 // ─────────────────────────────────────────────────────
 function updateChestsAnim(dt, elapsed) {
   for (const chest of activeChests) {
     if (chest.opened) continue;
-    
-    // Сундуки стоят на месте — без парения и вращения
-    chest.mesh.position.y = chest.baseY;
+    chest.mesh.rotation.set(0, 0, 0);        // никаких вращений
+    chest.mesh.position.y = chest.baseY;     // никакого парения
   }
 }
 
