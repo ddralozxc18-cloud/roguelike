@@ -30,6 +30,8 @@
   }
 
   function buildCard(schoolId, onSelect) {
+    // Данные должны быть загружены; если нет — не роняем весь экран выбора
+    if (typeof SCHOOLS === 'undefined' || typeof INNATE_ABILITIES === 'undefined') return null;
     const school = SCHOOLS[schoolId];
     const ability = INNATE_ABILITIES[schoolId];
     if (!school || !ability) return null;
@@ -57,6 +59,12 @@
   // mode: 'innate' (старт игры) | 'second' (вторая школа на 10 уровне)
   function open(mode) {
     isSecondSchoolMode = mode === 'second';
+    // Если данные школ не загрузились — показывать пустой экран бессмысленно;
+    // сообщаем вызывающему код через исключение (startFromMenu подхватит его
+    // и запустит игру напрямую).
+    if (typeof SCHOOLS === 'undefined' || typeof INNATE_ABILITIES === 'undefined') {
+      throw new Error('school data not loaded');
+    }
     const overlay = ensureOverlay();
     const row = overlay.querySelector('#school-cards-row');
     const title = overlay.querySelector('#school-select-title');
@@ -65,7 +73,7 @@
     row.innerHTML = '';
     const available = Object.keys(SCHOOLS).filter((id) => {
       if (!isSecondSchoolMode) return true;
-      return id !== gameState.innateSchool; // вторую школу нельзя совпадать с первой
+      return id !== (gameState && gameState.innateSchool); // вторую школу нельзя совпадать с первой
     });
 
     if (isSecondSchoolMode) {
@@ -86,7 +94,7 @@
 
   function onPicked(schoolId) {
     // Защита от повторного выбора после старта игры
-    if (!isSecondSchoolMode && gameState.started) { close(); return; }
+    if (!isSecondSchoolMode && gameState && gameState.started) { close(); return; }
     close();
     if (isSecondSchoolMode) {
       // Вторая школа: просто запоминаем (способности не дублируем в слот)
