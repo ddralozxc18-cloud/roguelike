@@ -152,11 +152,8 @@ function updateChestsAnim(dt, elapsed) {
   for (const chest of activeChests) {
     if (chest.opened) continue;
     
-    // Мягкое парение (как у кристаллов)
-    chest.mesh.position.y = chest.baseY + Math.sin(elapsed * 2 + chest.phase) * 0.05;
-    
-    // Медленное вращение
-    chest.mesh.rotation.y += dt * 0.5;
+    // Сундуки стоят на месте — без парения и вращения
+    chest.mesh.position.y = chest.baseY;
   }
 }
 
