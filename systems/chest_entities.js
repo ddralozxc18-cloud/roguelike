@@ -23,6 +23,8 @@ function spawnChest(chestId, position, targetScene) {
     return null; 
   }
 
+  // В CHESTS цвет теперь может быть строкой (#7a7a7a) или числом (0x7a7a7a).
+  // Three.js MeshStandardMaterial отлично понимает оба варианта.
   const geo = new THREE.BoxGeometry(0.8, 0.6, 0.6);
   const mat = new THREE.MeshStandardMaterial({
     color: def.color,
@@ -36,15 +38,10 @@ function spawnChest(chestId, position, targetScene) {
   mesh.receiveShadow = true;
   sc.add(mesh);
 
-  // Добавляем легкое парение, как у предметов
-  const baseY = position.y;
-  
   const chest = { 
     def, 
     mesh, 
     opened: false, 
-    baseY: baseY,
-    phase: Math.random() * Math.PI * 2, // для анимации парения
     position: position.clone() 
   };
   
@@ -63,22 +60,42 @@ function openChest(chest) {
   const loot = [];
   for (let i = 0; i < chest.def.lootRolls; i++) {
     const entry = weightedPick(chest.def.lootTable, e => e.weight);
-    const item = rollByType(entry.type, entry.rarity, { allowHidden: false });
+    
+    let item = null;
+    
+    // Если в таблице указан конкретный ID (например, для Bookmaker banner)
+    if (entry.id && typeof ITEMS_DB !== 'undefined' && ITEMS_DB[entry.id]) {
+      item = instantiate(entry.id, 'item');
+    } else {
+      // Иначе роллим случайный предмет нужной редкости
+      item = rollByType(entry.type, entry.rarity, { allowHidden: false });
+    }
+    
     if (item) loot.push({ ...item, category: entry.type });
   }
 
-  // 2. Выдача игроку
+  // 2. Выдача лута (выбрасываем на землю!)
+  let dropOffset = 0.8; // Чтобы предметы не спавнились прямо в центре сундука
   for (const item of loot) {
     if (item.category === 'spell') {
-      // Скиллы изучаются моментально (в отличие от левелапа, где предлагается выбор)
+      // Скиллы изучаются моментально
       if (!hasSpell(item.id)) {
         learnSpell(item.id);
       } else {
-        upgradeSpell(item.id); // Если уже есть — апгрейд
+        upgradeSpell(item.id);
       }
     } else {
-      // Предметы и оружие идут в инвентарь
-      addItemToInventory(item);
+      // Предметы и оружие выбрасываются как физические объекты
+      const dropPos = chest.mesh.position.clone();
+      dropPos.x += dropOffset;
+      dropOffset *= -1; // Чередуем смещение влево/вправо
+      
+      if (typeof dropItemInWorld === 'function') {
+        dropItemInWorld(item, dropPos);
+      } else {
+        // Фоллбек, если world_items.js не подключен
+        addItemToInventory(item);
+      }
     }
   }
 
@@ -92,7 +109,7 @@ function openChest(chest) {
   const idx = activeChests.indexOf(chest);
   if (idx > -1) activeChests.splice(idx, 1);
 
-  // 5. Показ UI с выпавшим лутом
+  // 5. Показ UI (если нужно показать всплывашку)
   if (typeof showLootPopup === 'function') {
     showLootPopup(loot);
   }
@@ -122,7 +139,6 @@ function getNearestChest(pos, radius = 2.5) {
 // Спавн сундуков по всему миру
 // ─────────────────────────────────────────────────────
 function spawnWorldChests() {
-  // Веса выпадения. Секретный chest_unemployed спавнится ТОЛЬКО вручную.
   const weights = [
     { id: 'chest_trash',      weight: 50 },
     { id: 'chest_common',     weight: 30 },
@@ -136,30 +152,20 @@ function spawnWorldChests() {
   while (spawned < 25 && attempts < 100) {
     attempts++;
     const w = weightedPick(weights, c => c.weight);
-    // Ищем свободное место (радиус 15 — чтобы не спавнить прямо под носом)
     const p = randomPointInWorld(15); 
-    
-    // Высота 0.3, чтобы сундук стоял на земле
     const success = spawnChest(w.id, new THREE.Vector3(p.x, 0.3, p.z));
     if (success) spawned++;
   }
 }
 
 // ─────────────────────────────────────────────────────
-// Анимация сундуков (вызывается в animate() из game.js)
+// Анимация сундуков (отключена, они статичны)
 // ─────────────────────────────────────────────────────
 function updateChestsAnim(dt, elapsed) {
-  for (const chest of activeChests) {
-    if (chest.opened) continue;
-    
-    // Мягкое парение (как у кристаллов)
-    chest.mesh.position.y = chest.baseY + Math.sin(elapsed * 2 + chest.phase) * 0.05;
-    
-    // Медленное вращение
-    chest.mesh.rotation.y += dt * 0.5;
-  }
+  // Сундуки статичны, но вызов в game.js оставлен для совместимости.
 }
 
+// Экспорт
 window.spawnChest = spawnChest;
 window.openChest = openChest;
 window.getNearestChest = getNearestChest;
@@ -168,13 +174,7 @@ window.updateChestsAnim = updateChestsAnim;
 window.activeChests = activeChests;
 
 // ─────────────────────────────────────────────────────
-// Cheat commands: chest_trash / chest_common / chest_rare /
-// chest_mythical / chest_unemployed — spawn a colored chest
-// 3 meters in front of the player. No loot logic yet.
-// Registration is DEFERRED until init(): at script-load time
-// registerCheatCommand does not exist yet (systems/cheats.js and
-// game.js load AFTER this file), so an IIFE here silently skipped
-// registration and the console reported "Unknown command".
+// Чит-команды для спавна сундуков
 // ─────────────────────────────────────────────────────
 const CHEST_CHEAT_DEFS = [
   ['chest_trash', 'gray'],
@@ -202,14 +202,14 @@ function registerChestCheatCommands() {
           if (log) log('Cannot spawn a chest: scene not ready', 'error');
           return;
         }
-        // Place the chest 3 meters in front of the camera, on the ground
+        
         const dir = new THREE.Vector3();
         cam.getWorldDirection(dir);
         dir.y = 0;
         if (dir.lengthSq() < 1e-6) dir.set(0, 0, -1);
         dir.normalize();
         const pos = cam.position.clone().addScaledVector(dir, 3);
-        pos.y = 0.3; // chest half-height — stands on the ground
+        pos.y = 0.3;
 
         const chest = spawnChest(id, pos, sc);
         if (chest && log) {
