@@ -158,6 +158,15 @@ function tickPassiveItems(dt) {
       
       if (typeof window.updateHUD === 'function') window.updateHUD();
       
+      // Подсвечиваем счётчик кристаллов в HUD,
+      // чтобы начисление было видно игроку.
+      const gemEl = document.getElementById('gem-counter');
+      if (gemEl) {
+        gemEl.classList.remove('gem-flash');
+        void gemEl.offsetWidth; // перезапуск анимации
+        gemEl.classList.add('gem-flash');
+      }
+
       if (typeof window.showFloatingText === 'function') {
         window.showFloatingText(`+${crystalsPerMinute} Crystals`, '#7dd3fc');
       } else {
