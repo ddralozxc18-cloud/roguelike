@@ -1,5 +1,9 @@
 // systems/loot.js
 
+// Статы, которые нельзя масштабировать редкостью/разбросом
+// (фиксированные ресурсы, выдаваемые пассивными предметами).
+const FIXED_STATS = new Set(['crystalsPerMinute']);
+
 // ─────────────────────────────────────────────────────
 // Универсальный ролл по редкости
 // ─────────────────────────────────────────────────────
@@ -76,19 +80,34 @@ function instantiate(baseId, type = 'item', options = {}) {
     };
   }
 
-  const rarity = RARITIES[base.rarity] || { statMultiplier: 1, affixCount: 0 };
+  // Таблица редкостей может быть пустой/отсутствовать —
+  // тогда используем нейтральные значения, чтобы не сломать лут.
+  const rarityDef = (typeof RARITIES !== 'undefined' && RARITIES[base.rarity])
+    ? RARITIES[base.rarity]
+    : null;
+  const statMultiplier = (rarityDef && typeof rarityDef.statMultiplier === 'number') ? rarityDef.statMultiplier : 1;
+  const affixCount = rarityDef ? (rarityDef.affixCount || 0) : 0;
   const finalStats = {};
 
-  // 1. Применяем множитель редкости к базовым статам
+  // 1. Применяем множитель редкости к базовым статам.
+  //    Фиксированные статы (FIXED_STATS, например crystalsPerMinute
+  //    у банера букмекера) не скалируются и не получают разброс,
+  //    чтобы пассивный эффект работал ровно так, как описан.
   for (const key in base.stats) {
-    finalStats[key] = base.stats[key] * rarity.statMultiplier;
-    // ±10% разброс, чтобы два меча не были одинаковыми
-    finalStats[key] *= 0.9 + rng() * 0.2; 
+    if (FIXED_STATS.has(key)) {
+      finalStats[key] = base.stats[key];
+    } else {
+      finalStats[key] = base.stats[key] * statMultiplier;
+      // ±10% разброс, чтобы два меча не были одинаковыми
+      finalStats[key] *= 0.9 + rng() * 0.2;
+    }
   }
 
-  // 2. Роллим аффиксы
-  const affixes = rollAffixes(rarity.affixCount, base.type || type);
-  
+  // 2. Роллим аффиксы (если пул AFFIX_POOL не определён — пустой список)
+  const affixes = (typeof AFFIX_POOL !== 'undefined')
+    ? rollAffixes(affixCount, base.type || type)
+    : [];
+
   // 3. Применяем аффиксы
   for (const af of affixes) {
     for (const stat in af.stats) {

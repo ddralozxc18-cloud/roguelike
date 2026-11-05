@@ -16,15 +16,15 @@ const CHESTS = {
     ]
   },
   
-  chest_common: { 
-    id: 'chest_common', 
-    name: 'Common Chest', 
+  chest_common: {
+    id: 'chest_common',
+    name: 'Common Chest',
     color: '#f2f2f2',      // белый
     rarity: 'common',
-    lootRolls: 2,
+    lootRolls: 1,
     lootTable: [
-      { type: 'item',   rarity: 'trash',  weight: 40 },
-      { type: 'item',   rarity: 'common', weight: 60 }
+      // Единственный предмет в common-сундуке — банер букмекера (выпадает с шансом 100%)
+      { type: 'item', id: 'bookmaker_banner', rarity: 'trash', weight: 100 }
     ]
   },
   
